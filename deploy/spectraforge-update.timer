@@ -1,0 +1,11 @@
+# Checks for a new SpectraForge release every 10 minutes (and 3 min after boot).
+[Unit]
+Description=Check for SpectraForge updates on a schedule
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

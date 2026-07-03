@@ -1,0 +1,18 @@
+# SpectraForge auto-updater (oneshot; driven by spectraforge-update.timer).
+# Install: copy both units to /etc/systemd/system/, EDIT the User + paths below
+# to match your LXC, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now spectraforge-update.timer
+[Unit]
+Description=SpectraForge auto-update (pull + redeploy on new release)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# EDIT these three lines for your deploy user + repo path:
+User=steve
+WorkingDirectory=/home/steve/SpectraForge
+ExecStart=/home/steve/SpectraForge/deploy/update.sh
+# stable = deploy tagged releases; set to `edge` to track master.
+Environment=SF_UPDATE_CHANNEL=stable

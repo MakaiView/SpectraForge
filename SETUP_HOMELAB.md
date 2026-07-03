@@ -189,6 +189,17 @@ docker run --rm --network sfnet --env-file .env.production -v "$PWD:/work" -w /w
   node:22-slim sh -c "npm i --no-save @supabase/supabase-js && node scripts/seed-admin.mjs"
 ```
 
+**(Optional) Seed the manufacturer baselines** — the transcribed ComMarker Omni
+X + Snapmaker settings in `seed/manufacturer-presets/baselines/`. Same pattern
+as the admin seed (needs the same env):
+
+```bash
+# On the Mac:  npm run db:seed-baselines
+# Or on the LXC:
+docker run --rm --network sfnet --env-file .env.production -v "$PWD:/work" -w /work \
+  node:22-slim sh -c "npm i --no-save @supabase/supabase-js && node scripts/seed-baselines.mjs"
+```
+
 Now browse to `https://sf.example.com`, sign in as the seeded admin, and open the
 Admin Console to invite users (or toggle open registration).
 
@@ -214,6 +225,40 @@ pull + restart + migrate. Use `.github/workflows/deploy.yml`:
 3. Push to `master` — the workflow builds, pushes, and deploys.
 
 Either way, migrations run as a deploy step, so schema changes ship with the code.
+
+### Auto-update (recommended) — release-gated, hands-off
+
+Let the LXC keep itself current from Git with **no inbound ports and no CI
+secrets**. It polls GitHub and redeploys when there's a newer **release tag** —
+so you control exactly when an update ships (by cutting a release), and
+half-finished commits never deploy.
+
+Install the systemd timer on the LXC (edit the `User`/paths in the unit first):
+
+```bash
+sudo cp deploy/spectraforge-update.service deploy/spectraforge-update.timer /etc/systemd/system/
+sudoedit /etc/systemd/system/spectraforge-update.service   # set User + repo path
+sudo systemctl daemon-reload
+sudo systemctl enable --now spectraforge-update.timer
+systemctl list-timers spectraforge-update.timer            # confirm it's scheduled
+```
+
+It checks every 10 minutes (`deploy/update.sh`): fetch tags → if the newest
+`vX.Y.Z` differs from what's deployed, check it out, rebuild, and migrate.
+
+**Cut a release** from your Mac (this is what triggers a deploy):
+
+```bash
+./scripts/release.sh 0.2.0     # bumps package.json, commits, tags v0.2.0, pushes
+```
+
+Within ~10 minutes the LXC picks up `v0.2.0` and redeploys. Watch it with
+`journalctl -u spectraforge-update.service -f`.
+
+Prefer continuous deployment (every commit to master, no tags)? Set
+`Environment=SF_UPDATE_CHANNEL=edge` in the service unit and `daemon-reload`.
+The build-from-source updater and the GHCR Actions pipeline are alternatives —
+pick one; don't run both.
 
 ## 8. Backups (the calibration/recipe data is the irreplaceable asset)
 
