@@ -7,7 +7,7 @@ import { CalibrationGrid } from "@/components/calibration/CalibrationGrid";
 import { PromoteModal } from "@/components/calibration/PromoteModal";
 import { MachineTypeChip } from "@/components/machines/MachineTypeChip";
 import { applicablePatterns, goalMeta, patternMeta, type PatternKey } from "@/lib/calibration/constants";
-import { axisIsRound, lightburnMap, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
+import { axisIsRound, lightburnMap, edgeExtensions, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
 import { formatParam, PARAM_DEFS, type MachineTypeKey } from "@/lib/params/schema";
 import { updateTestConfig, saveGrid, gradeSheet, refineRun } from "@/app/(app)/calibration/actions";
 
@@ -223,6 +223,19 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
               ))}
             </div>
           )}
+
+          {/* Range-extension hint: best sits on a machine-range edge */}
+          {editable && best && (() => {
+            const exts = edgeExtensions(viewingTest.axes, best, run.machineRanges);
+            if (!exts.length) return null;
+            const label = exts.map((e) => `${PARAM_DEFS[e.key].label} ${e.edge === "high" ? "max" : "min"}`).join(" & ");
+            return (
+              <div style={{ ...card, padding: "12px 16px", background: "var(--sf-warn-soft)", borderColor: "var(--sf-warn)", display: "flex", alignItems: "center", gap: 9 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sf-warn)" strokeWidth="1.9" style={{ flex: "none" }}><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+                <span style={{ fontSize: 12.5, color: "var(--sf-text-2)" }}>Best square is at the <strong style={{ color: "var(--sf-warn)" }}>{label}</strong> — the real sweet spot may be beyond your range. <strong>Refine</strong> will widen it (within safe caps) to explore further.</span>
+              </div>
+            );
+          })()}
 
           {/* Actions (current test) */}
           {editable && (

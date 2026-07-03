@@ -126,3 +126,25 @@ export const GOAL_TARGET_ENERGY: Record<GoalKey, number> = {
   color: 0.5,
   coat: 0.58,
 };
+
+/**
+ * Params calibration may push a bit BEYOND the machine's declared range when the
+ * sweet spot sits on a range edge (a conservatively-entered range likely has
+ * physical headroom). `power` is NOT here — a machine can't exceed its power cap.
+ */
+export const EXTENSIBLE_PARAMS: Set<ParamKey> = new Set(["speed", "freq", "qpulse", "pulse", "interval", "dpi", "passes"]);
+
+/**
+ * Absolute physical caps that extension can never cross, regardless of the
+ * machine's declared range. power is a %; passes is an integer ≥ 1. Others have
+ * no universal cap (the machine's true spec is the ceiling — enter it in
+ * Machine settings). Every generated value still passes clampParams too.
+ */
+export const HARD_CAP: Partial<Record<ParamKey, { min?: number; max?: number }>> = {
+  power: { min: 0, max: 100 },
+  passes: { min: 1 },
+};
+
+/** How far past the declared range one refine step may reach, as a fraction of
+ *  the axis span, when the best square is on that edge. */
+export const EXTEND_FACTOR = 0.25;

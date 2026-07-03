@@ -28,6 +28,7 @@ export function buildGradePrompt(axes: TestAxes, statics: Record<string, number>
     `Fixed settings on every cell: ${staticsStr}.\n` +
     `Goal: ${g.label} — ${g.sub}.\n\n` +
     `Grade each cell as one of "clean", "partial", or "fail" for that goal. ` +
+    `If the best cell sits on an outer edge of the grid, say so in the writeup — the true optimum may lie beyond this grid and the range should be extended. ` +
     `Return JSON exactly like: {"grades":[["clean","partial",...] (${cols} per row, ${rows} rows)], ` +
     `"best":{"row":<0-${rows - 1}>,"col":<0-${cols - 1}>}, "headline":"<one line>", "writeup":"<2-3 sentences>"}.`;
 
