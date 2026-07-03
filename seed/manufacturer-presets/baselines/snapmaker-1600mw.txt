@@ -1,0 +1,41 @@
+# machine_type: diode
+# lens: 1600mW
+# source: Snapmaker 1600mW
+# Transcribed from "Snapmaker 1600mW laser settings.pdf" (Luban, 1600mW Module —
+# the 200mW module tables are ignored). power = %, passes = Multi-pass.
+# SPEED CONVERTED: Luban "Work Speed" mm/min → app mm/s (÷ 60, rounded). Engrave rows
+# use the Vector setting (real work speed); B&W/Grayscale dwell rows omitted.
+# Verify before relying on them.
+
+Cork | engrave | power=90, speed=25, passes=1
+
+Bamboo | engrave | power=90, speed=13, passes=1
+
+EVA | engrave | power=90, speed=33, passes=1
+EVA 5mm | cut | power=100, speed=2, passes=1
+
+Rubber | engrave | power=100, speed=8, passes=1
+
+Acrylic | engrave | power=90, speed=8, passes=1
+Acrylic 2mm | cut | power=100, speed=1, passes=3
+
+Corrugated Cardboard | engrave | power=90, speed=13, passes=1
+Corrugated Cardboard 1mm | cut | power=100, speed=3, passes=2
+Corrugated Cardboard 3mm | cut | power=100, speed=2, passes=2
+Corrugated Cardboard 4mm | cut | power=100, speed=2, passes=3
+
+Plywood | engrave | power=100, speed=25, passes=1
+Plywood 1.5mm | cut | power=100, speed=1, passes=1
+Plywood 2.2mm | cut | power=100, speed=2, passes=3
+Plywood 2.8mm | cut | power=100, speed=2, passes=4
+
+MDF | engrave | power=100, speed=33, passes=1
+
+Leather | engrave | power=70, speed=5, passes=1
+Leather 0.6mm | cut | power=70, speed=5, passes=2
+
+Sticker | engrave | power=35, speed=5, passes=1
+Sticker 0.3mm | cut | power=100, speed=13, passes=1
+
+Colored Card | engrave | power=40, speed=33, passes=1
+Colored Card 0.3mm | cut | power=40, speed=10, passes=1

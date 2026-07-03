@@ -1,0 +1,54 @@
+# machine_type: diode
+# lens: 10W
+# source: Snapmaker 10W
+# Transcribed from "Snapmaker 10W laser settings.pdf" (Luban, 10W High Power Module).
+# power = %, passes = Number of Passes. SPEED CONVERTED: Luban "Work Speed" is mm/min;
+# the app uses mm/s, so speed = mm/min ÷ 60 (rounded). Engrave rows use the Vector /
+# line-filled setting that has a real work speed (dot/greyscale dwell rows omitted).
+# Verify before relying on them.
+
+Red Acrylic 2mm | cut | power=100, speed=3, passes=1
+Red Acrylic 3mm | cut | power=100, speed=2, passes=1
+Red Acrylic 5mm | cut | power=100, speed=2, passes=1
+
+Black Acrylic 2mm | cut | power=100, speed=3, passes=1
+Black Acrylic 3mm | cut | power=100, speed=2, passes=1
+Black Acrylic 5mm | cut | power=100, speed=2, passes=1
+
+MDF | engrave | power=50, speed=33, passes=1
+MDF 2mm | cut | power=100, speed=10, passes=1
+MDF 3mm | cut | power=100, speed=4, passes=1
+
+Vegetable Tanned Leather | engrave | power=40, speed=60, passes=1
+Vegetable Tanned Leather 1.5mm | cut | power=80, speed=18, passes=1
+Vegetable Tanned Leather 2mm | cut | power=100, speed=10, passes=1
+
+Crazy Horse Leather | engrave | power=50, speed=50, passes=2
+Crazy Horse Leather 2mm | cut | power=100, speed=10, passes=1
+
+Basswood | engrave | power=50, speed=20, passes=1
+Basswood 1.5mm | cut | power=100, speed=10, passes=1
+Basswood 3mm | cut | power=100, speed=5, passes=1
+Basswood 5mm | cut | power=100, speed=3, passes=1
+Basswood 8mm | cut | power=100, speed=5, passes=2
+
+Cardstock | engrave | power=25, speed=20, passes=1
+Cardstock 200g | cut | power=90, speed=30, passes=1
+Cardstock 300g | cut | power=100, speed=25, passes=1
+
+Coated Paper 200g | cut | power=100, speed=30, passes=1
+Coated Paper 300g | cut | power=100, speed=30, passes=1
+Coated Paper 350g | cut | power=100, speed=25, passes=1
+
+Corrugated Paper 1.6mm | cut | power=100, speed=16, passes=1
+Corrugated Paper 3mm | cut | power=100, speed=10, passes=1
+
+Glass | engrave | power=100, speed=7, passes=1
+
+Pinewood | engrave | power=90, speed=60, passes=1
+Pinewood 4mm | cut | power=100, speed=5, passes=1
+Pinewood 8mm | cut | power=100, speed=13, passes=2
+
+Stainless Steel | engrave | power=100, speed=30, passes=1
+
+Anodized Aluminum | engrave | power=100, speed=58, passes=1

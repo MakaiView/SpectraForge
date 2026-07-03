@@ -13,7 +13,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > types/db.ts",
-    "db:seed-admin": "node --env-file=.env.local scripts/seed-admin.mjs"
+    "db:seed-admin": "node --env-file=.env.local scripts/seed-admin.mjs",
+    "db:seed-baselines": "node --env-file=.env.local scripts/seed-baselines.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

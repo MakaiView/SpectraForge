@@ -1,0 +1,90 @@
+# machine_type: uv
+# lens: 150mm
+# source: ComMarker Omni XE 6W UV
+# Transcribed from "Omni X 6W Material Settings.pdf" — OMNI 6W PARAMETER, 150mm lens.
+# Same conventions as omni-70mm.txt: UV galvo, qpulse = "Pulse-Width" column (ns),
+# speed mm/s, freq kHz, interval mm; no power; photo/dwell rows omitted.
+# Cross-checked against the OCR text layer; verify before relying on them.
+
+Glass Engraving | engrave | speed=200, freq=40, qpulse=1, passes=1, interval=0.03
+Glass Deep Engraving/Matte Glass | engrave | speed=1600, freq=40, qpulse=2, passes=1, interval=0.02
+Glass Cutting 0.3mm | cut | speed=100, freq=40, qpulse=1, passes=50
+Ceramic | mark | speed=500, freq=40, qpulse=1, passes=2, interval=0.03
+
+Aluminum Engraving | engrave | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+Aluminum Cutting 0.5mm | cut | speed=5, freq=40, qpulse=1, passes=12
+Brass Engraving | engrave | speed=500, freq=40, qpulse=1, passes=1, interval=0.03
+Brass (Deep Brown) | mark | speed=100, freq=30, qpulse=5, passes=1, interval=0.015
+Stainless Steel Engraving | engrave | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+Stainless Steel (Brown) | mark | speed=300, freq=30, qpulse=1, passes=1, interval=0.03
+Stainless Steel (Black) | mark | speed=10, freq=40, qpulse=1, passes=1, interval=0.01
+Mirror Stainless Steel Engraving | engrave | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+Painted Metal Engraving | engrave | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+
+White Coated Tumblers (Remove Coat) | mark | speed=750, freq=40, qpulse=1, passes=3, interval=0.015
+Black Coated Tumblers (Remove Coat) | mark | speed=800, freq=50, qpulse=1, passes=2, interval=0.01
+Black Coated Tumblers (Brown/Gold) | mark | speed=350, freq=30, qpulse=1, passes=3, interval=0.03
+
+Black Acrylic Engraving | engrave | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+Black Acrylic Cutting 3mm | cut | speed=5, freq=40, qpulse=1, passes=6
+Transparent Acrylic Engraving | engrave | speed=500, freq=40, qpulse=1, passes=1, interval=0.03
+Transparent Acrylic Lamp Base | mark | speed=250, freq=30, qpulse=1, passes=2, interval=0.03
+Colorful Acrylic Engraving | engrave | speed=800, freq=30, qpulse=3, passes=1, interval=0.03
+Colorful Acrylic Cutting 3mm | cut | speed=150, freq=30, qpulse=1, passes=55
+
+PC/ABS | mark | speed=1000, freq=40, qpulse=15, passes=1, interval=0.03
+PC Plastic Cutting 0.5mm | cut | speed=100, freq=40, qpulse=1, passes=5
+Nylon | mark | speed=2000, freq=40, qpulse=10, passes=1, interval=0.1
+TPU | mark | speed=600, freq=40, qpulse=1, passes=1, interval=0.025
+PET/PI (PET Film) | mark | speed=2200, freq=30, qpulse=1, passes=1, interval=0.03
+PVC | mark | speed=1000, freq=30, qpulse=10, passes=1, interval=0.1
+Self-adhesive labels | mark | speed=1000, freq=30, qpulse=10, passes=1, interval=0.1
+Silicone | mark | speed=600, freq=40, qpulse=1, passes=1, interval=0.025
+Rubber | mark | speed=1500, freq=30, qpulse=5, passes=1, interval=0.03
+
+Wood Engraving | engrave | speed=1000, freq=40, qpulse=5, passes=2, interval=0.03
+Wood Dark Color | mark | speed=100, freq=40, qpulse=5, passes=1, interval=0.03
+Cutting Plywood 3mm | cut | speed=40, freq=40, qpulse=1, passes=15
+Wood 3D Engraving | engrave | speed=500, freq=40, qpulse=1, interval=0.03
+Wood--Walnut | mark | speed=200, freq=40, qpulse=1, passes=1, interval=0.02
+Bamboo | mark | speed=200, freq=30, qpulse=3, passes=1, interval=0.02
+Cork Coasters Engraving | engrave | speed=800, freq=40, qpulse=5, passes=1, interval=0.03
+Cork Coasters (Deep Engraving) | engrave | speed=300, freq=40, qpulse=1, passes=1, interval=0.03
+
+Leather Marking | mark | speed=1000, freq=30, qpulse=20, passes=1, interval=0.03
+Leather (Black Marking) | mark | speed=750, freq=40, qpulse=1, passes=2, interval=0.03
+Black Leather (White) | mark | speed=3000, freq=35, qpulse=15, passes=1, interval=0.03
+Silk | mark | speed=1000, freq=40, qpulse=15, passes=1, interval=0.03
+Jean | mark | speed=1000, freq=40, qpulse=7, passes=1, interval=0.03
+Towels | mark | speed=2500, freq=30, qpulse=17, passes=1, interval=0.03
+Cutting Felt | cut | speed=200, freq=40, qpulse=1, passes=3
+Black cotton T-shirt | mark | speed=1000, freq=40, qpulse=7, passes=1, interval=0.03
+
+Phone Cases (TPU) | mark | speed=600, freq=40, qpulse=1, passes=1, interval=0.025
+Charger Adaptor | mark | speed=1000, freq=40, qpulse=15, passes=1, interval=0.03
+PCB Marking | mark | speed=1000, freq=40, qpulse=15, passes=1, interval=0.03
+USB | mark | speed=1000, freq=40, qpulse=15, passes=1, interval=0.03
+
+Orange | mark | speed=1000, freq=40, qpulse=1, passes=2, interval=0.03
+Apple | mark | speed=1200, freq=40, qpulse=1, passes=1, interval=0.02
+Banana | mark | speed=700, freq=40, qpulse=1, passes=1, interval=0.03
+Macarons | mark | speed=400, freq=30, qpulse=1, passes=3, interval=0.05
+Egg | mark | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+Chocolate | mark | speed=1500, freq=30, qpulse=5, passes=1, interval=0.03
+Biscuit | mark | speed=1200, freq=30, qpulse=5, passes=1, interval=0.03
+
+Baseball | mark | speed=1000, freq=30, qpulse=15, passes=1, interval=0.03
+Table Tennis Ball | mark | speed=1500, freq=30, qpulse=8, passes=1, interval=0.03
+Golf Ball | mark | speed=700, freq=40, qpulse=20, passes=1, interval=0.03
+
+Slate Marking (Grey) | mark | speed=1000, freq=40, qpulse=1, passes=1, interval=0.03
+Slate Marking (White) | mark | speed=100, freq=40, qpulse=1, passes=1, interval=0.05
+Slate 3D Engraving | engrave | speed=700, freq=40, qpulse=1, passes=120, interval=0.03
+Stone Marking | mark | speed=500, freq=40, qpulse=1, passes=9, interval=0.03
+Stone Deep Engraving | engrave | speed=500, freq=40, qpulse=1, passes=256, interval=0.03
+
+Paper Marking | mark | speed=1000, freq=30, qpulse=5, passes=1, interval=0.03
+Paper Cutting | cut | speed=100, freq=40, qpulse=1, passes=2
+
+Black Carbon Fiber Marking | mark | speed=1500, freq=40, qpulse=15, passes=1, interval=0.03
+Carbon Fiber Cutting 0.2mm | cut | speed=100, freq=40, qpulse=1, passes=4
