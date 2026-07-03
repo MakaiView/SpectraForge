@@ -5,8 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root
 
-echo "→ Building + starting the app stack…"
-docker compose -f deploy/docker-compose.app.yml up -d --build
+# Which compose file: default = app.yml (Caddy/TLS); set SF_COMPOSE_FILE to
+# deploy/docker-compose.lan.yml for a LAN-only deploy.
+COMPOSE="${SF_COMPOSE_FILE:-deploy/docker-compose.app.yml}"
+
+echo "→ Building + starting the app stack ($COMPOSE)…"
+docker compose -f "$COMPOSE" up -d --build
 
 echo "→ Applying database migrations…"
 ./deploy/migrate.sh

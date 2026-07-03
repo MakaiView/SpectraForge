@@ -16,3 +16,5 @@ WorkingDirectory=/home/steve/SpectraForge
 ExecStart=/home/steve/SpectraForge/deploy/update.sh
 # stable = deploy tagged releases; set to `edge` to track master.
 Environment=SF_UPDATE_CHANNEL=stable
+# For a LAN-only deploy (no Caddy), uncomment:
+# Environment=SF_COMPOSE_FILE=deploy/docker-compose.lan.yml

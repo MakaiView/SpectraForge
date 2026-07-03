@@ -1,0 +1,27 @@
+# LAN-only app stack — no Caddy, no TLS. The app is published on port 3000 and
+# reached at http://<lxc-ip>:3000. Supabase's own stack already publishes the
+# kong gateway on :8000, so the browser hits http://<lxc-ip>:8000 for the API
+# (that's your NEXT_PUBLIC_SUPABASE_URL). Nothing is exposed off the LAN.
+#
+#   SF_COMPOSE_FILE=deploy/docker-compose.lan.yml docker compose -f deploy/docker-compose.lan.yml up -d --build
+name: spectraforge
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    image: spectraforge:latest
+    restart: unless-stopped
+    env_file: ../.env.production
+    ports:
+      - "3000:3000"
+    networks:
+      - sfnet
+
+networks:
+  sfnet:
+    external: true
