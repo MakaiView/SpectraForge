@@ -1,0 +1,71 @@
+# Optional "Nicer" deploy (BUILD_SPEC §2b): build the image, push to GHCR, then
+# SSH to the LXC to pull + restart + migrate. The "Simple" alternative is just
+# running deploy/deploy.sh on the LXC (git pull + compose up --build) — you don't
+# need this workflow for that.
+#
+# To use: switch deploy/docker-compose.app.yml `app` from `build:` to
+#   image: ghcr.io/makaiview/spectraforge:latest
+# and set these repo secrets/variables:
+#   secret NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE (LXC) SSH: LXC_SSH_HOST, LXC_SSH_USER, LXC_SSH_KEY
+#   variable NEXT_PUBLIC_SUPABASE_URL
+name: deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-to-lxc:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull + restart + migrate on the LXC
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LXC_SSH_HOST }}
+          username: ${{ secrets.LXC_SSH_USER }}
+          key: ${{ secrets.LXC_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd ~/SpectraForge
+            git pull --ff-only
+            docker compose -f deploy/docker-compose.app.yml pull
+            docker compose -f deploy/docker-compose.app.yml up -d
+            ./deploy/migrate.sh

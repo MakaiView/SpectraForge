@@ -1,0 +1,21 @@
+# Attach the Supabase `kong` gateway and `db` to the shared `sfnet` network,
+# WITHOUT forking the upstream supabase/docker compose. Copy this file next to
+# the supabase docker-compose.yml and include it:
+#
+#   docker compose -f docker-compose.yml -f supabase-network-override.yml up -d
+#
+# - kong on sfnet → Caddy can reverse-proxy the public Supabase API.
+# - db on sfnet   → the migration one-shot can reach postgres at db:5432.
+services:
+  kong:
+    networks:
+      - default
+      - sfnet
+  db:
+    networks:
+      - default
+      - sfnet
+
+networks:
+  sfnet:
+    external: true

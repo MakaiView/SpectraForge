@@ -1,0 +1,50 @@
+# SpectraForge app stack — the Next.js app + Caddy (TLS reverse proxy).
+# Joins the shared `sfnet` network so Caddy can reach the Supabase `kong`
+# gateway. See SETUP_HOMELAB.md. Run from this dir:  docker compose -f docker-compose.app.yml up -d --build
+name: spectraforge
+
+services:
+  app:
+    # Build locally (Simple path). For the GHCR path, comment out `build:` and
+    # set `image: ghcr.io/makaiview/spectraforge:latest`.
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    image: spectraforge:latest
+    restart: unless-stopped
+    env_file: ../.env.production
+    expose:
+      - "3000"
+    networks:
+      - sfnet
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Domains + ACME email, from .env.production.
+      SF_APP_DOMAIN: ${SF_APP_DOMAIN}
+      SF_API_DOMAIN: ${SF_API_DOMAIN}
+      SF_ACME_EMAIL: ${SF_ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - sfnet
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  sfnet:
+    external: true

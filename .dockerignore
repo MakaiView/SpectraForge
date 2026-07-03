@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env
+.env*.local
+npm-debug.log*
+
+# Keep the build context small — none of these belong in the image.
+design_handoff_spectraforge
+seed
+supabase/.branches
+supabase/.temp
+*.md
+!next-env.d.ts
+.vscode
+.DS_Store

@@ -1,0 +1,29 @@
+# Caddy auto-TLS reverse proxy. Two hostnames:
+#   {$SF_APP_DOMAIN}  → the Next.js app (app:3000)
+#   {$SF_API_DOMAIN}  → the Supabase API paths ONLY (kong:8000)
+#
+# The API host deliberately exposes just /auth /rest /storage /realtime /graphql
+# /functions — Supabase Studio (served at kong's root) stays LAN-only, reachable
+# only via the LXC's LAN IP (BUILD_SPEC §2a). For LAN-only / Cloudflare Tunnel
+# setups where Caddy shouldn't fetch public certs, add `tls internal`.
+
+{
+	email {$SF_ACME_EMAIL}
+}
+
+{$SF_APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+{$SF_API_DOMAIN} {
+	encode zstd gzip
+	# Only the client-facing API surface — never Studio.
+	@api path /auth/* /rest/* /storage/* /realtime/* /graphql/* /functions/*
+	handle @api {
+		reverse_proxy kong:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
