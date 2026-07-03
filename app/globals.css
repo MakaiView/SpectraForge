@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Design tokens — lifted verbatim from the prototype (SpectraForge v2.dc.html).
+   Dark is default on [data-sf]; Light on [data-sf="light"]. Accent (--sf-accent*)
+   is overridden inline by the ThemeProvider from the PAL palette.
+
+   WATCH-OUT (README §Interactions, BUILD_SPEC §8): do NOT add CSS transitions on
+   any property whose value resolves through a custom property that changes on
+   theme/nav switch (color, custom-prop-driven backgrounds) — it caused a Chrome
+   render "wedge". Keep theme swaps instant.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+[data-sf] {
+  --sf-bg: #0d1016;
+  --sf-surface: #141a24;
+  --sf-surface-2: #1b2330;
+  --sf-surface-3: #232d3d;
+  --sf-line: #222b39;
+  --sf-line-strong: #313d4f;
+  --sf-text: #eef2f8;
+  --sf-text-2: #a7b3c5;
+  --sf-text-3: #69768a;
+  --sf-grid: rgba(125, 145, 180, 0.05);
+  --sf-accent: #3f97ff;
+  --sf-accent-strong: #67adff;
+  --sf-accent-soft: rgba(63, 151, 255, 0.14);
+  --sf-accent-ring: rgba(63, 151, 255, 0.4);
+  --sf-success: #3dd68c;
+  --sf-success-soft: rgba(61, 214, 140, 0.14);
+  --sf-warn: #f3b13f;
+  --sf-warn-soft: rgba(243, 177, 63, 0.14);
+  --sf-danger: #f2647e;
+  --sf-danger-soft: rgba(242, 100, 126, 0.14);
+  --sf-e1: 0 2px 6px rgba(0, 0, 0, 0.32);
+  --sf-e2: 0 14px 38px rgba(0, 0, 0, 0.46);
+}
+
+[data-sf="light"] {
+  --sf-bg: #eaeef4;
+  --sf-surface: #ffffff;
+  --sf-surface-2: #f4f7fb;
+  --sf-surface-3: #e9eef5;
+  --sf-line: #dbe2ec;
+  --sf-line-strong: #c2ccda;
+  --sf-text: #121823;
+  --sf-text-2: #48566b;
+  --sf-text-3: #78859a;
+  --sf-grid: rgba(40, 65, 100, 0.05);
+  --sf-accent: #1f74e6;
+  --sf-accent-strong: #1666cf;
+  --sf-accent-soft: rgba(31, 116, 230, 0.1);
+  --sf-accent-ring: rgba(31, 116, 230, 0.38);
+  --sf-success: #0f9d63;
+  --sf-success-soft: rgba(15, 157, 99, 0.12);
+  --sf-warn: #b9791a;
+  --sf-warn-soft: rgba(185, 121, 26, 0.14);
+  --sf-danger: #d23b58;
+  --sf-danger-soft: rgba(210, 59, 88, 0.12);
+  --sf-e1: 0 2px 6px rgba(30, 50, 90, 0.1);
+  --sf-e2: 0 16px 40px rgba(30, 50, 90, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--sf-bg);
+  /* faint 1px grid texture over --sf-bg (README §Design Tokens) */
+  background-image: linear-gradient(var(--sf-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sf-grid) 1px, transparent 1px);
+  background-size: 46px 46px;
+  color: var(--sf-text);
+  font-family: var(--font-hanken), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sf-line-strong);
+  border-radius: 8px;
+  border: 3px solid var(--sf-bg);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::selection {
+  background: var(--sf-accent-ring);
+  color: #fff;
+}
+
+button {
+  font-family: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+button:active {
+  transform: translateY(1px);
+}
+button:focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 2px;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--sf-accent) !important;
+  box-shadow: 0 0 0 3px var(--sf-accent-soft);
+}
+
+/* ── Shell responsive behavior (README §Responsive) ─────────────────────────── */
+.sf-hamburger {
+  display: none;
+}
+.sf-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(6, 9, 14, 0.5);
+  backdrop-filter: blur(2px);
+}
+@media (max-width: 1080px) {
+  .sf-grid2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 860px) {
+  .sf-aside {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 272px !important;
+    transform: translateX(-100%);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  }
+  .sf-aside[data-open="1"] {
+    transform: translateX(0) !important;
+  }
+  .sf-hamburger {
+    display: inline-flex !important;
+  }
+  .sf-topsearch {
+    display: none !important;
+  }
+  .sf-tophide {
+    display: none !important;
+  }
+  .sf-btnlabel {
+    display: none !important;
+  }
+}
+

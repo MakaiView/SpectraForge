@@ -1,0 +1,10 @@
+-- Seed data applied after migrations on `supabase db reset`.
+--
+-- The first admin is intentionally NOT seeded here: creating an auth user with a
+-- hashed password belongs to Supabase Auth, not raw SQL. Run the one-time script
+-- instead, which uses the service role (BUILD_SPEC §3b):
+--
+--   npm run db:seed-admin
+--
+-- Reference/library seed data (material categories, machine presets) lands with
+-- the data layer in a later phase.
