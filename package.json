@@ -15,7 +15,8 @@
     "db:types": "supabase gen types typescript --local > types/db.ts",
     "db:seed-admin": "node --env-file=.env.local scripts/seed-admin.mjs",
     "db:seed-baselines": "node --env-file=.env.local scripts/seed-baselines.mjs",
-    "db:seed-machines": "node --env-file=.env.local scripts/seed-machines.mjs"
+    "db:seed-machines": "node --env-file=.env.local scripts/seed-machines.mjs",
+    "db:seed-recipes": "node --env-file=.env.local scripts/seed-recipes.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
