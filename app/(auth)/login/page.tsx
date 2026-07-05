@@ -3,6 +3,9 @@ import { AuthGate } from "@/components/auth/AuthGate";
 
 export const metadata = { title: "Sign in · SpectraForge" };
 
+// Reads the registration flag from Supabase — not statically pre-rendered.
+export const dynamic = "force-dynamic";
+
 /**
  * The auth gate. Reads registration_open server-side (RLS allows anon read) so
  * the gate shows the correct copy: a "Create one" link when open, or

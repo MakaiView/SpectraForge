@@ -15,6 +15,10 @@ const nextConfig = {
   // sharp is a native module used only in server routes (image ingest, §4a) —
   // keep it external so it isn't bundled.
   serverExternalPackages: ["sharp"],
+  // Lint + type-check run in dev + `npm run typecheck`; skip them in the image
+  // build so a resource-constrained LXC isn't re-doing ~5 min of checking.
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   // Storage-served photos will be signed URLs from Supabase; images are rendered
   // as real <img src> per BUILD_SPEC §8, so no remotePatterns needed yet.
 };

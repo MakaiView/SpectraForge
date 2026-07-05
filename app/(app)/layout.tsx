@@ -5,6 +5,11 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ActiveMachineProvider, type ActiveMachineOption } from "@/components/shell/ActiveMachineProvider";
 import type { MachineTypeKey } from "@/lib/params/schema";
 
+// Every authed route is per-user data — never statically pre-rendered. Declaring
+// it here means `next build` won't try to render these at build time (where the
+// build container can't reach Supabase), which otherwise hangs the build.
+export const dynamic = "force-dynamic";
+
 /**
  * Authed shell layout. Middleware already redirects unauthenticated requests,
  * but we re-check on the server here and pass the real profile (name, role,
