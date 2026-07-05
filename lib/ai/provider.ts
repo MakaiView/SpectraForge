@@ -1,4 +1,4 @@
-import { resolveAiConfig } from "@/lib/ai/config";
+import { resolveAiConfig, type AiConfig } from "@/lib/ai/config";
 
 export interface ChatRequest {
   system?: string;
@@ -18,8 +18,8 @@ export type ChatResult = { ok: true; content: string } | { ok: false; error: str
  * §4b). SERVER-ONLY: the key never leaves here. Returns the raw message content;
  * callers validate/parse it.
  */
-export async function chat(req: ChatRequest): Promise<ChatResult> {
-  const cfg = await resolveAiConfig();
+export async function chat(req: ChatRequest, explicitCfg?: AiConfig): Promise<ChatResult> {
+  const cfg = explicitCfg ?? (await resolveAiConfig());
   if (!cfg) return { ok: false, error: "AI is not configured.", unconfigured: true };
 
   const messages: Array<{ role: string; content: string; images?: string[] }> = [];

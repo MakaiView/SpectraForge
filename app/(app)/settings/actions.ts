@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { resolveAiConfig } from "@/lib/ai/config";
+import { chat } from "@/lib/ai/provider";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -48,6 +50,27 @@ export async function saveAiConfig(input: { provider: string; model: string; bas
   if (input.clearKey) patch.ai_api_key = "";
   else if (input.api_key && input.api_key.trim()) patch.ai_api_key = input.api_key.trim();
   return updateSettings(patch);
+}
+
+/**
+ * Test the AI endpoint with a tiny round-trip. Uses the form values when
+ * supplied (so you can test before saving), falling back to the saved key/config
+ * — all resolved server-side. Verifies base URL + model + key actually work.
+ */
+export async function testAiConnection(input?: { model?: string; base_url?: string; api_key?: string }): Promise<{ ok: boolean; message: string }> {
+  const saved = await resolveAiConfig();
+  const baseUrl = (input?.base_url?.trim() || saved?.baseUrl || "").replace(/\/$/, "");
+  const model = input?.model?.trim() || saved?.model || "";
+  const apiKey = input?.api_key?.trim() || saved?.apiKey || "";
+  if (!baseUrl || !model) return { ok: false, message: "Set a base URL and a model first." };
+
+  const res = await chat(
+    { system: "You are a connection test. Reply with the single word: ok", user: "ping", timeoutMs: 25000 },
+    { baseUrl, apiKey, model }
+  );
+  if (!res.ok) return { ok: false, message: res.error };
+  const reply = res.content.trim().replace(/\s+/g, " ").slice(0, 60);
+  return { ok: true, message: `Connected — ${model} replied “${reply}”.` };
 }
 
 export async function saveProfile(name: string, company: string): Promise<Result> {

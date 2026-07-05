@@ -6,7 +6,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { CategoryManager } from "@/components/materials/CategoryManager";
 import type { Category } from "@/components/materials/MaterialForm";
 import { PAL, type AccentKey, type ThemeMode } from "@/lib/theme/palette";
-import { saveAppearance, saveNotifications, saveAiConfig, saveCardIdentity } from "@/app/(app)/settings/actions";
+import { saveAppearance, saveNotifications, saveAiConfig, saveCardIdentity, testAiConnection } from "@/app/(app)/settings/actions";
 
 export interface SettingsData {
   theme: string;
@@ -57,6 +57,8 @@ export function SettingsScreen({ settings, categories }: { settings: SettingsDat
   const [apiKey, setApiKey] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Notifications
   const [notif, setNotif] = useState({ calibration: settings.notif_calibration, review: settings.notif_review, tips: settings.notif_tips });
@@ -92,6 +94,13 @@ export function SettingsScreen({ settings, categories }: { settings: SettingsDat
     setApiKey("");
     setAiMsg("Saved.");
     router.refresh();
+  }
+  async function testAi() {
+    setTesting(true); setTestResult(null);
+    // Test the current form values (falling back to the saved key server-side).
+    const res = await testAiConnection({ model, base_url: baseUrl, api_key: apiKey });
+    setTesting(false);
+    setTestResult(res);
   }
 
   const isOllama = provider === "ollama";
@@ -158,10 +167,22 @@ export function SettingsScreen({ settings, categories }: { settings: SettingsDat
         <label style={label}>API key {settings.hasApiKey && <span style={{ color: "var(--sf-success)", fontWeight: 500 }}>· saved</span>}</label>
         <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} type="password" placeholder={settings.hasApiKey ? "•••••••• (leave blank to keep)" : "Paste your key"} autoComplete="off" style={input} />
         {!isOllama && <p style={{ fontSize: 12, color: "var(--sf-warn)", margin: "10px 0 0" }}>Only Ollama is wired to real calls today; other providers store config for later.</p>}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
           <button onClick={saveAi} disabled={aiBusy} style={{ height: 38, padding: "0 16px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{aiBusy ? "Saving…" : "Save AI config"}</button>
+          <button onClick={testAi} disabled={testing} style={{ height: 38, padding: "0 15px", borderRadius: 9, border: "1px solid var(--sf-line-strong)", background: "var(--sf-surface-2)", color: "var(--sf-text)", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M5 12l4 4L19 6" /></svg>
+            {testing ? "Testing…" : "Test connection"}
+          </button>
           {aiMsg && <span style={{ fontSize: 12.5, color: aiMsg === "Saved." ? "var(--sf-success)" : "var(--sf-danger)" }}>{aiMsg}</span>}
         </div>
+        {testResult && (
+          <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 9, fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, background: testResult.ok ? "var(--sf-success-soft)" : "var(--sf-danger-soft)", border: `1px solid ${testResult.ok ? "var(--sf-success)" : "var(--sf-danger)"}`, color: testResult.ok ? "var(--sf-success)" : "var(--sf-danger)" }}>
+            {testResult.ok
+              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flex: "none" }}><path d="M5 12l4 4L19 6" /></svg>
+              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flex: "none" }}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></svg>}
+            <span>{testResult.message}</span>
+          </div>
+        )}
       </Section>
 
       {/* Material Categories */}
