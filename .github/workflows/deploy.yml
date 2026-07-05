@@ -10,9 +10,11 @@
 #   variable NEXT_PUBLIC_SUPABASE_URL
 name: deploy
 
+# Manual-only (opt-in). The homelab uses the poll-based auto-updater
+# (deploy/update.sh + systemd timer), so this does NOT run on push. Enable the
+# GHCR path only if you set the required secrets/vars (see header comment) and
+# want CI-driven deploys instead.
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 concurrency:
