@@ -38,7 +38,7 @@ const groupLabelStyle: React.CSSProperties = {
   padding: "18px 0 8px 14px",
 };
 
-export function AppShell({ user, onboarded, children }: { user: ShellUser; onboarded: boolean; children: React.ReactNode }) {
+export function AppShell({ user, onboarded, reviewCount = 0, children }: { user: ShellUser; onboarded: boolean; reviewCount?: number; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -122,14 +122,12 @@ export function AppShell({ user, onboarded, children }: { user: ShellUser; onboa
                     >
                       <NavIcon name={it.key} />
                       <span>{it.label}</span>
-                      {it.badge && (
-                        <span
-                          className="font-mono"
-                          style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, color: "var(--sf-warn)", background: "var(--sf-warn-soft)", padding: "2px 7px", borderRadius: 999 }}
-                        >
-                          {it.badge}
-                        </span>
-                      )}
+                      {(() => {
+                        const badge = it.key === "review" ? (reviewCount > 0 ? String(reviewCount) : null) : it.badge;
+                        return badge ? (
+                          <span className="font-mono" style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, color: "var(--sf-warn)", background: "var(--sf-warn-soft)", padding: "2px 7px", borderRadius: 999 }}>{badge}</span>
+                        ) : null;
+                      })()}
                     </Link>
                   );
                 })}

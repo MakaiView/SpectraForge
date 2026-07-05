@@ -56,7 +56,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "COLLECTIONS",
     items: [
       { key: "favorites", label: "Favorites", href: "/favorites" },
-      { key: "review", label: "Needs Review", href: "/review", badge: "7" },
+      { key: "review", label: "Needs Review", href: "/review" },
     ],
   },
   { label: "UTILITIES", items: [{ key: "tools", label: "Tools", href: "/tools" }] },
