@@ -9,6 +9,7 @@ import { AttemptForm, blankAttempt, type AttemptFormValue } from "@/components/a
 import { useActiveMachine } from "@/components/shell/ActiveMachineProvider";
 import type { MachineOption, MaterialOption } from "@/components/recipes/RecipeForm";
 import type { MachineTypeKey } from "@/lib/params/schema";
+import type { Advice } from "@/lib/ai/advise";
 
 export interface AttemptItem {
   id: string;
@@ -27,6 +28,7 @@ export interface AttemptItem {
   inputFullUrl: string | null;
   resultThumbUrl: string | null;
   resultFullUrl: string | null;
+  aiAdvice: Advice | null;
 }
 
 const card: React.CSSProperties = { background: "var(--sf-surface)", border: "1px solid var(--sf-line)", borderRadius: 14, boxShadow: "var(--sf-e1)" };
@@ -39,7 +41,7 @@ function Thumb({ url }: { url: string | null }) {
   );
 }
 
-export function AttemptsScreen({ attempts, machines, materials }: { attempts: AttemptItem[]; machines: MachineOption[]; materials: MaterialOption[] }) {
+export function AttemptsScreen({ attempts, machines, materials, aiConfigured }: { attempts: AttemptItem[]; machines: MachineOption[]; materials: MaterialOption[]; aiConfigured: boolean }) {
   const router = useRouter();
   const { active } = useActiveMachine();
   const [viewing, setViewing] = useState<AttemptItem | null>(null);
@@ -99,7 +101,7 @@ export function AttemptsScreen({ attempts, machines, materials }: { attempts: At
         </div>
       )}
 
-      {viewing && <AttemptView attempt={viewing} onClose={() => setViewing(null)} onEdit={() => openEdit(viewing)} />}
+      {viewing && <AttemptView attempt={viewing} aiConfigured={aiConfigured} onClose={() => setViewing(null)} onEdit={() => openEdit(viewing)} />}
       {form && (
         <AttemptForm
           initial={form.value}

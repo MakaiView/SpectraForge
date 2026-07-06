@@ -37,6 +37,7 @@ export type Database = {
       attempts: {
         Row: {
           addons: string[]
+          ai_advice: Json | null
           created_at: string
           id: string
           input_path: string | null
@@ -56,6 +57,7 @@ export type Database = {
         }
         Insert: {
           addons?: string[]
+          ai_advice?: Json | null
           created_at?: string
           id?: string
           input_path?: string | null
@@ -75,6 +77,7 @@ export type Database = {
         }
         Update: {
           addons?: string[]
+          ai_advice?: Json | null
           created_at?: string
           id?: string
           input_path?: string | null

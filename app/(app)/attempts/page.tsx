@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { AttemptsScreen, type AttemptItem } from "@/components/attempts/AttemptsScreen";
 import { getMachineOptions, getMaterialOptions } from "@/lib/data/options";
 import { ATTEMPT_BUCKET, signedUrlMap } from "@/lib/storage/photos";
+import { isAiConfigured } from "@/lib/ai/config";
+import type { Advice } from "@/lib/ai/advise";
 import type { ParamValues } from "@/components/params/ParamReadout";
 import type { MachineTypeKey } from "@/lib/params/schema";
 
@@ -13,10 +15,11 @@ function dateLabel(iso: string): string {
 
 export default async function AttemptsPage() {
   const supabase = await createClient();
-  const [{ data }, machines, materials] = await Promise.all([
+  const [{ data }, machines, materials, aiConfigured] = await Promise.all([
     supabase.from("attempts").select("*, machines(name, type)").order("logged_at", { ascending: false }),
     getMachineOptions(),
     getMaterialOptions(),
+    isAiConfigured(),
   ]);
 
   const rows = data ?? [];
@@ -44,8 +47,9 @@ export default async function AttemptsPage() {
       inputFullUrl: r.input_path ? urls[r.input_path] ?? null : null,
       resultThumbUrl: r.result_thumb_path ? urls[r.result_thumb_path] ?? null : null,
       resultFullUrl: r.result_path ? urls[r.result_path] ?? null : null,
+      aiAdvice: (r.ai_advice as Advice | null) ?? null,
     };
   });
 
-  return <AttemptsScreen attempts={attempts} machines={machines} materials={materials} />;
+  return <AttemptsScreen attempts={attempts} machines={machines} materials={materials} aiConfigured={aiConfigured} />;
 }
