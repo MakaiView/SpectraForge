@@ -139,8 +139,12 @@ textarea:focus-visible {
   backdrop-filter: blur(2px);
 }
 @media (max-width: 1080px) {
+  /* minmax(0, 1fr), not 1fr: a bare 1fr track is min-content-sized, so a row with
+     nowrap text (the param summaries) would blow the column out past the viewport
+     and force horizontal scroll. minmax(0,…) lets the track shrink so the rows'
+     ellipsis truncation actually kicks in. */
   .sf-grid2 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
 @media (max-width: 860px) {
@@ -167,6 +171,21 @@ textarea:focus-visible {
   }
   .sf-btnlabel {
     display: none !important;
+  }
+  /* Tighter gutters on phones so content isn't crushed. */
+  .sf-screen {
+    padding: 22px 16px !important;
+  }
+  .sf-header {
+    padding: 0 16px !important;
+  }
+  /* The metric strip is a 5-wide flex row on desktop; on phones it can't shrink
+     that far, so it overflowed and forced horizontal page scroll. Reflow it into
+     a 2-column grid (the cards' inline flex is ignored once it's a grid). */
+  .sf-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
   }
 }
 
