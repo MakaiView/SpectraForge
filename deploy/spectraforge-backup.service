@@ -1,0 +1,20 @@
+# SpectraForge nightly backup (oneshot; driven by spectraforge-backup.timer).
+# Install (EDIT the User + paths to match your LXC):
+#   cp deploy/spectraforge-backup.service deploy/spectraforge-backup.timer /etc/systemd/system/
+#   sudoedit /etc/systemd/system/spectraforge-backup.service   # set User + repo path + SF_BACKUP_DIR
+#   systemctl daemon-reload
+#   systemctl enable --now spectraforge-backup.timer
+[Unit]
+Description=SpectraForge backup (Postgres + Storage files + config)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+# EDIT these to your deploy user + repo path:
+User=root
+WorkingDirectory=/root/SpectraForge
+ExecStart=/root/SpectraForge/scripts/backup.sh
+# Where to write archives (a NAS mount is ideal) + how many of each to keep:
+Environment=SF_BACKUP_DIR=/mnt/nas/sf
+Environment=SF_BACKUP_KEEP=14

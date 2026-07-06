@@ -274,15 +274,43 @@ pick one; don't run both.
 
 ## 8. Backups (the calibration/recipe data is the irreplaceable asset)
 
-- **Whole-LXC**: Proxmox `vzdump` on a schedule.
-- **Database**: nightly `pg_dump` to your NAS:
+**Two assets, not one.** Uploaded photos/SVGs live on the Supabase **Storage
+filesystem**, *not* in Postgres — so a database dump alone restores every
+recipe/attempt row with **dangling image paths**. You need the DB dump **and**
+the Storage files. `scripts/backup.sh` captures both (plus the config needed to
+rebuild the stack) into dated, rotated archives:
 
-  ```bash
-  docker exec -t supabase-db pg_dumpall -U postgres | gzip > /mnt/nas/sf/db-$(date +%F).sql.gz
-  ```
+- `db-<stamp>.sql.gz` — full `pg_dumpall`
+- `storage-<stamp>.tar.gz` — the Storage object files (the photo/SVG bytes)
+- `config-<stamp>.tar.gz` — `.env.production` + `deploy/` (contains secrets — keep the target private)
 
-- **Storage**: sync the Supabase Storage volume (uploaded photos) to the NAS
-  nightly (`rsync`/`restic`).
+**One-off run** (writes to `SF_BACKUP_DIR`, default `/mnt/nas/sf`):
+
+```bash
+SF_BACKUP_DIR=/mnt/nas/sf ./scripts/backup.sh
+```
+
+**Nightly, hands-off** — install the systemd timer (edit `User`/paths +
+`SF_BACKUP_DIR` in the service first):
+
+```bash
+cp deploy/spectraforge-backup.service deploy/spectraforge-backup.timer /etc/systemd/system/
+sudoedit /etc/systemd/system/spectraforge-backup.service   # set User, repo path, SF_BACKUP_DIR
+systemctl daemon-reload
+systemctl enable --now spectraforge-backup.timer
+systemctl list-timers spectraforge-backup.timer            # confirm 03:00 nightly
+```
+
+Env knobs: `SF_BACKUP_DIR` (target), `SF_BACKUP_KEEP` (retain N of each kind,
+default 14), `SF_DB_CONTAINER` / `SF_STORAGE_CONTAINER` (default
+`supabase-db` / `supabase-storage`).
+
+**Restore** (into a fresh stack): `gunzip -c db-<stamp>.sql.gz | docker exec -i
+supabase-db psql -U postgres` for the database, and extract
+`storage-<stamp>.tar.gz` back into the Storage volume (`/var/lib/storage`).
+
+- **Belt-and-braces**: a Proxmox `vzdump` of the whole LXC on a schedule also
+  captures everything (DB + Storage + config) at the VM level.
 
 ## 9. AI configuration
 

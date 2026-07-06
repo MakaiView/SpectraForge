@@ -11,6 +11,7 @@ import { chat, extractJson } from "@/lib/ai/provider";
 import { buildGradePrompt, parseGradeResponse } from "@/lib/ai/grade";
 import { buildSuggestPrompt, parseSuggestResponse } from "@/lib/ai/suggest";
 import { getGrounding } from "@/lib/ai/grounding";
+import { machineContext, type MachineInfo } from "@/lib/ai/context";
 import { objectToModelBase64 } from "@/lib/images/forModel";
 import { clampParams } from "@/lib/ai/constraints";
 import { CALIBRATION_BUCKET } from "@/lib/storage/photos";
@@ -18,8 +19,10 @@ import { CALIBRATION_BUCKET } from "@/lib/storage/photos";
 export type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
 async function getMachine(supabase: Awaited<ReturnType<typeof createClient>>, machineId: string) {
-  const { data } = await supabase.from("machines").select("id, type, ranges").eq("id", machineId).single();
-  return data as { id: string; type: MachineTypeKey; ranges: Ranges } | null;
+  const { data } = await supabase.from("machines").select("id, name, manufacturer, model, type, watts, lens, ranges").eq("id", machineId).single();
+  return data as
+    | { id: string; name: string; manufacturer: string; model: string; type: MachineTypeKey; watts: number; lens: string; ranges: Ranges }
+    | null;
 }
 
 /** Non-axis params get a static value: from the baseline if present, else the
@@ -126,9 +129,14 @@ export async function saveGrid(testId: string, grid: Grid, best: BestSquare | nu
  */
 export async function gradeSheet(testId: string): Promise<Result<{ source: "vision" | "heuristic" }>> {
   const supabase = await createClient();
-  const { data: test } = await supabase.from("calibration_tests").select("id, run_id, axes, statics, photo_path, calibration_runs(goal)").eq("id", testId).single();
+  const { data: test } = await supabase
+    .from("calibration_tests")
+    .select("id, run_id, axes, statics, photo_path, calibration_runs(goal, material_name, machines(name, manufacturer, model, type, watts, lens))")
+    .eq("id", testId)
+    .single();
   if (!test) return { ok: false, error: "Test not found." };
-  const goal = (test.calibration_runs as { goal: string } | null)?.goal as GoalKey;
+  const run = test.calibration_runs as { goal: string; material_name: string; machines: MachineInfo | null } | null;
+  const goal = run?.goal as GoalKey;
   const axes = test.axes as unknown as TestAxes;
   const statics = (test.statics as Record<string, number>) ?? {};
 
@@ -138,7 +146,8 @@ export async function gradeSheet(testId: string): Promise<Result<{ source: "visi
   if ((await isAiConfigured()) && test.photo_path) {
     const b64 = await objectToModelBase64(CALIBRATION_BUCKET, test.photo_path);
     if (b64) {
-      const { system, user } = buildGradePrompt(axes, statics, goal);
+      const machineDesc = run?.machines ? machineContext(run.machines) : "an unspecified laser";
+      const { system, user } = buildGradePrompt(axes, statics, goal, machineDesc, run?.material_name ?? "");
       const res = await chat({ system, user, images: [b64], json: true, timeoutMs: 90000 });
       if (res.ok) {
         const parsed = parseGradeResponse(extractJson(res.content), axes, statics);
@@ -264,7 +273,7 @@ export async function suggestSettings(input: SuggestInput): Promise<Result<Sugge
 
   if (await isAiConfigured()) {
     const grounding = await getGrounding(machine.type, input.machineId, input.materialName, goal.process);
-    const { system, user } = buildSuggestPrompt(machine.type, machine.ranges, input.materialName, input.goal, grounding);
+    const { system, user } = buildSuggestPrompt(machine.type, machine.ranges, input.materialName, input.goal, grounding, machineContext(machine));
     const res = await chat({ system, user, json: true, timeoutMs: 60000 });
     if (res.ok) {
       const parsed = parseSuggestResponse(extractJson(res.content), machine.type, machine.ranges);

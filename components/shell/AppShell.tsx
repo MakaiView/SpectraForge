@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -50,6 +50,28 @@ export function AppShell({ user, onboarded, reviewCount = 0, ai, children }: { u
   const [navOpen, setNavOpen] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
   const [switcher, setSwitcher] = useState(false);
+
+  const switcherRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the footer popouts when clicking anywhere outside them, or on Escape.
+  useEffect(() => {
+    if (!switcher && !userMenu) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (switcher && switcherRef.current && !switcherRef.current.contains(t)) setSwitcher(false);
+      if (userMenu && userMenuRef.current && !userMenuRef.current.contains(t)) setUserMenu(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { setSwitcher(false); setUserMenu(false); }
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [switcher, userMenu]);
 
   const isAdmin = user.role === "admin";
   const activeKey = (pathname.split("/")[1] || "dashboard") as string;
@@ -141,9 +163,9 @@ export function AppShell({ user, onboarded, reviewCount = 0, ai, children }: { u
         <div style={{ borderTop: "1px solid var(--sf-line)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           <AiStatusPill ai={ai} />
 
-          <div style={{ position: "relative" }}>
+          <div ref={switcherRef} style={{ position: "relative" }}>
             <button
-              onClick={() => machines.length && setSwitcher((v) => !v)}
+              onClick={() => machines.length && (setUserMenu(false), setSwitcher((v) => !v))}
               style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 11px", borderRadius: 10, border: "1px solid var(--sf-line)", background: "var(--sf-surface-2)", color: "var(--sf-text)", cursor: machines.length ? "pointer" : "default", textAlign: "left" }}
               title="Active machine"
             >
@@ -172,9 +194,9 @@ export function AppShell({ user, onboarded, reviewCount = 0, ai, children }: { u
             )}
           </div>
 
-          <div style={{ position: "relative" }}>
+          <div ref={userMenuRef} style={{ position: "relative" }}>
             <button
-              onClick={() => setUserMenu((v) => !v)}
+              onClick={() => { setSwitcher(false); setUserMenu((v) => !v); }}
               style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 10px", borderRadius: 10, border: "1px solid transparent", background: "transparent", color: "var(--sf-text)", cursor: "pointer", textAlign: "left" }}
             >
               <span style={{ width: 30, height: 30, borderRadius: 999, background: "var(--sf-accent-soft)", color: "var(--sf-accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flex: "none" }}>
