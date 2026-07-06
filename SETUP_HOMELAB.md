@@ -233,18 +233,30 @@ secrets**. It polls GitHub and redeploys when there's a newer **release tag** �
 so you control exactly when an update ships (by cutting a release), and
 half-finished commits never deploy.
 
-Install the systemd timer on the LXC (edit the `User`/paths in the unit first):
+Install the systemd timer **and** the in-app update trigger on the LXC (edit the
+`User`/paths in the units first):
 
 ```bash
-sudo cp deploy/spectraforge-update.service deploy/spectraforge-update.timer /etc/systemd/system/
-sudoedit /etc/systemd/system/spectraforge-update.service   # set User + repo path
+sudo cp deploy/spectraforge-update.service deploy/spectraforge-update.timer \
+        deploy/spectraforge-update-trigger.path /etc/systemd/system/
+sudoedit /etc/systemd/system/spectraforge-update.service          # set User + repo path
+sudoedit /etc/systemd/system/spectraforge-update-trigger.path     # fix PathExists path
 sudo systemctl daemon-reload
-sudo systemctl enable --now spectraforge-update.timer
-systemctl list-timers spectraforge-update.timer            # confirm it's scheduled
+sudo systemctl enable --now spectraforge-update.timer spectraforge-update-trigger.path
+systemctl list-timers spectraforge-update.timer                   # confirm it's scheduled
 ```
 
 It checks every 10 minutes (`deploy/update.sh`): fetch tags → if the newest
-`vX.Y.Z` differs from what's deployed, check it out, rebuild, and migrate.
+`vX.Y.Z` differs from what's deployed, check it out, rebuild, and migrate. Every
+run writes `deploy/state/last-update.json`, which the **Admin Console → Software
+updates** panel reads to show the running version and last result.
+
+The `.path` unit lets you update **without SSH**: the panel's **Check for
+updates** button drops `deploy/state/update-requested.json` (a bind-mounted dir),
+the `.path` unit sees it and fires the updater immediately (forcing a rebuild of
+the current release even if there's no newer tag). `_apply.sh` creates
+`deploy/state/` (mode 777 so the container's non-root app user can write the
+request file) on the first deploy.
 
 **Cut a release** from your Mac (this is what triggers a deploy):
 

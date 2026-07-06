@@ -10,6 +10,7 @@ import { NavIcon } from "@/components/shell/NavIcons";
 import { useActiveMachine } from "@/components/shell/ActiveMachineProvider";
 import { MachineTypeDot } from "@/components/machines/MachineTypeChip";
 import { Onboarding } from "@/components/shell/Onboarding";
+import { AiStatusPill, type AiStatus } from "@/components/shell/AiStatusPill";
 import { NAV_GROUPS, SCREENS } from "@/lib/nav";
 
 export interface ShellUser {
@@ -38,7 +39,7 @@ const groupLabelStyle: React.CSSProperties = {
   padding: "18px 0 8px 14px",
 };
 
-export function AppShell({ user, onboarded, reviewCount = 0, children }: { user: ShellUser; onboarded: boolean; reviewCount?: number; children: React.ReactNode }) {
+export function AppShell({ user, onboarded, reviewCount = 0, ai, children }: { user: ShellUser; onboarded: boolean; reviewCount?: number; ai: AiStatus; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -136,8 +137,10 @@ export function AppShell({ user, onboarded, reviewCount = 0, children }: { user:
           })}
         </nav>
 
-        {/* Footer: active-machine switcher + user button */}
+        {/* Footer: AI status + active-machine switcher + user button */}
         <div style={{ borderTop: "1px solid var(--sf-line)", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <AiStatusPill ai={ai} />
+
           <div style={{ position: "relative" }}>
             <button
               onClick={() => machines.length && setSwitcher((v) => !v)}

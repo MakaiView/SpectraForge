@@ -5,6 +5,7 @@ import { Badge, recipeStatusBadge } from "@/components/ui/Badge";
 import { MachineTypeDot } from "@/components/machines/MachineTypeChip";
 import { paramSummary, type ParamValues } from "@/components/params/ParamReadout";
 import { OUTCOME_META } from "@/components/attempts/AttemptView";
+import { isAiConfigured } from "@/lib/ai/config";
 import type { MachineTypeKey } from "@/lib/params/schema";
 
 export const metadata = { title: "Dashboard · SpectraForge" };
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
   const firstName = (profile?.name || "").trim().split(/\s+/)[0] || "there";
   const supabase = await createClient();
 
-  const [recipes, materials, attempts, calRuns, reviewRecipes, marginalAttempts, recentRecipes, recentAttempts, machines] = await Promise.all([
+  const [recipes, materials, attempts, calRuns, reviewRecipes, marginalAttempts, recentRecipes, recentAttempts, machines, aiConfigured] = await Promise.all([
     supabase.from("recipes").select("id", { count: "exact", head: true }),
     supabase.from("materials").select("id", { count: "exact", head: true }),
     supabase.from("attempts").select("id", { count: "exact", head: true }),
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
     supabase.from("recipes").select("id, name, material_name, status, params, created_at, machines(name, type)").order("created_at", { ascending: false }).limit(6),
     supabase.from("attempts").select("id, material_name, outcome, created_at, machines(name, type)").order("created_at", { ascending: false }).limit(6),
     supabase.from("machines").select("id, name, type, recipes(count)").order("created_at", { ascending: true }),
+    isAiConfigured(),
   ]);
 
   const recipeCount = recipes.count ?? 0;
@@ -130,15 +132,17 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* AI guidance */}
-          <div style={{ ...card, padding: "18px 20px", background: "var(--sf-accent-soft)", borderColor: "var(--sf-accent)", overflow: "hidden", position: "relative" }}>
-            <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-accent)", marginBottom: 8 }}>AI GUIDANCE</div>
-            <p style={{ fontSize: 13, color: "var(--sf-text-2)", margin: "0 0 14px", lineHeight: 1.5 }}>Grade calibration sheets from a photo and get suggested starting settings, grounded in your baselines.</p>
-            <Link href="/settings" style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
-              Set up AI
-            </Link>
-          </div>
+          {/* AI setup prompt — only until the assistant is configured */}
+          {!aiConfigured && (
+            <div style={{ ...card, padding: "18px 20px", background: "var(--sf-accent-soft)", borderColor: "var(--sf-accent)", overflow: "hidden", position: "relative" }}>
+              <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-accent)", marginBottom: 8 }}>AI GUIDANCE</div>
+              <p style={{ fontSize: 13, color: "var(--sf-text-2)", margin: "0 0 14px", lineHeight: 1.5 }}>Grade calibration sheets from a photo and get suggested starting settings, grounded in your baselines.</p>
+              <Link href="/settings" style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
+                Set up AI
+              </Link>
+            </div>
+          )}
 
           {/* Machines mini-list */}
           <div style={{ ...card, padding: "18px 20px" }}>

@@ -13,11 +13,15 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        SF_VERSION: ${SF_VERSION:-dev}
     image: spectraforge:latest
     restart: unless-stopped
     env_file: ../.env.production
     expose:
       - "3000"
+    # Deploy-state bridge for the Admin → Updates panel (see lan.yml for details).
+    volumes:
+      - ./state:/app/deploy/state
     networks:
       - sfnet
 

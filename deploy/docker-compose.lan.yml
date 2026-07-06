@@ -14,11 +14,17 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        SF_VERSION: ${SF_VERSION:-dev}
     image: spectraforge:latest
     restart: unless-stopped
     env_file: ../.env.production
     ports:
       - "3000:3000"
+    # Deploy-state bridge: the update panel reads last-update.json here, and the
+    # "Check for updates" button writes update-requested.json for the host's
+    # systemd .path unit to pick up. Path resolves to /app/deploy/state (cwd=/app).
+    volumes:
+      - ./state:/app/deploy/state
     networks:
       - sfnet
 

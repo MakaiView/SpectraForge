@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { UpdateStatus } from "@/lib/deploy/state";
+
+interface UpdateState {
+  version: string;
+  channel: string;
+  last: UpdateStatus | null;
+  pending: boolean;
+}
 
 interface AdminUser {
   id: string;
@@ -67,10 +75,12 @@ export function AdminConsole({
   currentUserId,
   initialUsers,
   registrationOpen,
+  update,
 }: {
   currentUserId: string;
   initialUsers: AdminUser[];
   registrationOpen: boolean;
+  update: UpdateState;
 }) {
   const router = useRouter();
   const [regOpen, setRegOpen] = useState(registrationOpen);
@@ -149,6 +159,9 @@ export function AdminConsole({
           </div>
         ))}
       </div>
+
+      {/* Software update */}
+      <UpdateSection initial={update} />
 
       {/* Registration toggle */}
       <div style={{ ...cardStyle, padding: "18px 20px", marginBottom: 18, display: "flex", alignItems: "center", gap: 16 }}>
@@ -259,6 +272,193 @@ export function AdminConsole({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function relTime(iso: string): string {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+const STATUS_META: Record<UpdateStatus["status"], { tone: "success" | "muted" | "danger"; label: string }> = {
+  updated: { tone: "success", label: "Updated" },
+  "up-to-date": { tone: "muted", label: "Up to date" },
+  error: { tone: "danger", label: "Failed" },
+};
+
+/**
+ * Software-update panel. Shows the running version + last update result, and a
+ * button that queues an update WITHOUT SSH: it POSTs to /api/admin/update, which
+ * drops a request file the host's systemd `.path` unit picks up → runs the
+ * updater → rebuilds. We then poll the same endpoint; during the rebuild the app
+ * container restarts, so fetches fail briefly — we treat that as "rebuilding" and
+ * keep polling until a newer result lands.
+ */
+function UpdateSection({ initial }: { initial: UpdateState }) {
+  const router = useRouter();
+  const [state, setState] = useState<UpdateState>(initial);
+  const [phase, setPhase] = useState<"idle" | "queued" | "rebuilding" | "done" | "error">("idle");
+  const [note, setNote] = useState("");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const baselineRef = useRef<string>(initial.last?.finishedAt ?? "");
+  const startedRef = useRef<number>(0);
+
+  const stopPolling = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopPolling, [stopPolling]);
+
+  const poll = useCallback(async () => {
+    // 8-minute safety cap — a rebuild on the LXC is a couple of minutes.
+    if (Date.now() - startedRef.current > 8 * 60 * 1000) {
+      stopPolling();
+      setPhase("error");
+      setNote("This is taking longer than expected. Check `journalctl -u spectraforge-update.service` on the host.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/update", { cache: "no-store" });
+      if (!res.ok) return; // e.g. a transient 502 while the proxy comes back
+      const d = (await res.json()) as UpdateState;
+      const finished = d.last?.finishedAt ?? "";
+      if (finished && finished !== baselineRef.current) {
+        // A new run completed since we queued.
+        stopPolling();
+        setState(d);
+        const st = d.last?.status ?? "up-to-date";
+        setPhase(st === "error" ? "error" : "done");
+        setNote(d.last?.message ?? "");
+        router.refresh(); // pull the new running version into the page
+      } else {
+        setState((s) => ({ ...s, pending: d.pending }));
+        setPhase(d.pending ? "queued" : "rebuilding");
+      }
+    } catch {
+      // Fetch failed — the container is almost certainly mid-restart.
+      setPhase("rebuilding");
+    }
+  }, [router, stopPolling]);
+
+  async function queueUpdate() {
+    setPhase("queued");
+    setNote("");
+    baselineRef.current = state.last?.finishedAt ?? "";
+    startedRef.current = Date.now();
+    try {
+      const res = await fetch("/api/admin/update", { method: "POST" });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPhase("error");
+        setNote(b.error || "Could not queue the update.");
+        return;
+      }
+    } catch {
+      setPhase("error");
+      setNote("Could not reach the server to queue the update.");
+      return;
+    }
+    stopPolling();
+    timerRef.current = setInterval(poll, 4000);
+  }
+
+  const busy = phase === "queued" || phase === "rebuilding";
+  const last = state.last;
+  const sm = last ? STATUS_META[last.status] : null;
+
+  const phaseText =
+    phase === "queued"
+      ? "Update queued — the host will pick it up momentarily…"
+      : phase === "rebuilding"
+        ? "Rebuilding — the app will restart. This can take a couple of minutes…"
+        : phase === "done"
+          ? note || "Update complete."
+          : phase === "error"
+            ? note || "Update failed."
+            : "";
+
+  return (
+    <div style={{ ...cardStyle, padding: "18px 20px", marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600 }}>Software updates</div>
+          <div style={{ fontSize: 12.5, color: "var(--sf-text-3)", marginTop: 3 }}>
+            Running <span className="font-mono" style={{ color: "var(--sf-text-2)" }}>{state.version}</span>
+            {" · "}
+            <span className="font-mono" style={{ color: "var(--sf-text-2)" }}>{state.channel}</span> channel. Checks for a new release automatically every ~10&nbsp;min.
+          </div>
+        </div>
+        <button
+          onClick={queueUpdate}
+          disabled={busy}
+          style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 38, padding: "0 15px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, flex: "none" }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" style={busy ? { animation: "sfSpin .9s linear infinite" } : undefined}>
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <path d="M21 3v6h-6" />
+          </svg>
+          {busy ? "Updating…" : "Check for updates"}
+        </button>
+      </div>
+
+      {phaseText && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: "10px 12px",
+            borderRadius: 9,
+            fontSize: 12.5,
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            background: phase === "error" ? "var(--sf-danger-soft)" : phase === "done" ? "var(--sf-success-soft)" : "var(--sf-surface-3)",
+            color: phase === "error" ? "var(--sf-danger)" : phase === "done" ? "var(--sf-success)" : "var(--sf-text-2)",
+            border: `1px solid ${phase === "error" ? "var(--sf-danger)" : phase === "done" ? "var(--sf-success)" : "var(--sf-line)"}`,
+          }}
+        >
+          {busy && (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ animation: "sfSpin .9s linear infinite", flex: "none" }}>
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            </svg>
+          )}
+          <span>{phaseText}</span>
+        </div>
+      )}
+
+      {/* Last update result */}
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--sf-line)" }}>
+        <div className="font-mono" style={{ fontSize: 9.5, letterSpacing: ".16em", color: "var(--sf-text-3)", marginBottom: 8 }}>LAST UPDATE</div>
+        {!last ? (
+          <div style={{ fontSize: 13, color: "var(--sf-text-3)" }}>No update has run yet on this host.</div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {sm && <Badge tone={sm.tone}>{sm.label}</Badge>}
+            <span style={{ fontSize: 13, color: "var(--sf-text-2)" }}>
+              {last.status === "updated" ? (
+                <>
+                  <span className="font-mono">{last.fromVersion}</span> → <span className="font-mono" style={{ color: "var(--sf-text)", fontWeight: 600 }}>{last.toVersion}</span>
+                </>
+              ) : (
+                <span className="font-mono">{last.toVersion}</span>
+              )}
+            </span>
+            <span style={{ fontSize: 12.5, color: "var(--sf-text-3)" }}>· {relTime(last.finishedAt)} · {last.trigger}</span>
+          </div>
+        )}
+        {last?.message && phase === "idle" && (
+          <div style={{ fontSize: 12.5, color: last.status === "error" ? "var(--sf-danger)" : "var(--sf-text-3)", marginTop: 6 }}>{last.message}</div>
+        )}
+      </div>
+      <style>{`@keyframes sfSpin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

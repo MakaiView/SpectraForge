@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/shell/AppShell";
 import { ActiveMachineProvider, type ActiveMachineOption } from "@/components/shell/ActiveMachineProvider";
+import { resolveAiConfig } from "@/lib/ai/config";
 import type { MachineTypeKey } from "@/lib/params/schema";
 
 // Every authed route is per-user data — never statically pre-rendered. Declaring
@@ -21,14 +22,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!profile) redirect("/login");
 
   const supabase = await createClient();
-  const [{ data }, { data: settings }, reviewRecipes, reviewAttempts] = await Promise.all([
+  const [{ data }, { data: settings }, reviewRecipes, reviewAttempts, aiCfg] = await Promise.all([
     supabase.from("machines").select("id, name, type").order("created_at", { ascending: true }),
-    supabase.from("user_settings").select("onboarded").eq("id", profile.id).single(),
+    supabase.from("user_settings").select("onboarded, ai_provider, ai_model").eq("id", profile.id).single(),
     supabase.from("recipes").select("id", { count: "exact", head: true }).eq("status", "review"),
     supabase.from("attempts").select("id", { count: "exact", head: true }).in("outcome", ["marginal", "fail"]),
+    resolveAiConfig(),
   ]);
   const machines: ActiveMachineOption[] = (data ?? []).map((m) => ({ id: m.id, name: m.name, type: m.type as MachineTypeKey }));
   const reviewCount = (reviewRecipes.count ?? 0) + (reviewAttempts.count ?? 0);
+  const ai = {
+    configured: !!aiCfg,
+    provider: settings?.ai_provider || "ollama",
+    model: aiCfg?.model || settings?.ai_model || "",
+  };
 
   return (
     <ActiveMachineProvider machines={machines}>
@@ -40,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }}
         onboarded={settings?.onboarded ?? true}
         reviewCount={reviewCount}
+        ai={ai}
       >
         {children}
       </AppShell>

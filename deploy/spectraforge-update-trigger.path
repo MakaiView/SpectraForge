@@ -1,0 +1,20 @@
+# Watches for an in-app update request and fires the updater immediately, so the
+# Admin Console "Check for updates" button doesn't wait for the 10-min timer.
+# The app (in its container) drops deploy/state/update-requested.json; this unit
+# sees it appear and starts spectraforge-update.service, which consumes the file.
+#
+# Install alongside the timer (EDIT the path to match your repo location):
+#   sudo cp deploy/spectraforge-update-trigger.path /etc/systemd/system/
+#   sudoedit /etc/systemd/system/spectraforge-update-trigger.path   # fix PathExists
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now spectraforge-update-trigger.path
+[Unit]
+Description=Trigger a SpectraForge update when the app requests one
+
+[Path]
+# EDIT to your repo path:
+PathExists=/home/steve/SpectraForge/deploy/state/update-requested.json
+Unit=spectraforge-update.service
+
+[Install]
+WantedBy=paths.target
