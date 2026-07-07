@@ -78,9 +78,12 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
   async function onGrade() {
     if (!currentTest) return;
     setBusy("grade");
-    await gradeSheet(currentTest.id);
-    setBusy("");
-    router.refresh();
+    try {
+      await gradeSheet(currentTest.id);
+      router.refresh();
+    } finally {
+      setBusy("");
+    }
   }
 
   async function onPattern(pattern: PatternKey) {

@@ -50,10 +50,15 @@ export function AttemptView({ attempt, aiConfigured, onClose, onEdit }: { attemp
   async function runAdvice() {
     setBusy(true);
     setAdviceErr("");
-    const res = await adviseAttempt(attempt.id);
-    setBusy(false);
-    if (res.ok) setAdvice(res.advice);
-    else setAdviceErr(res.error);
+    try {
+      const res = await adviseAttempt(attempt.id);
+      if (res.ok) setAdvice(res.advice);
+      else setAdviceErr(res.error);
+    } catch {
+      setAdviceErr("The advice request failed. Check the AI connection in Settings and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

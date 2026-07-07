@@ -98,9 +98,14 @@ export function SettingsScreen({ settings, categories }: { settings: SettingsDat
   async function testAi() {
     setTesting(true); setTestResult(null);
     // Test the current form values (falling back to the saved key server-side).
-    const res = await testAiConnection({ model, base_url: baseUrl, api_key: apiKey });
-    setTesting(false);
-    setTestResult(res);
+    try {
+      const res = await testAiConnection({ model, base_url: baseUrl, api_key: apiKey });
+      setTestResult(res);
+    } catch {
+      setTestResult({ ok: false, message: "The test request failed to reach the server." });
+    } finally {
+      setTesting(false);
+    }
   }
 
   const isOllama = provider === "ollama";

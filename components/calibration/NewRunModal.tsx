@@ -47,10 +47,15 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
   async function suggest() {
     if (!machineId) return setError("Pick a machine first.");
     setSuggesting(true); setError("");
-    const res = await suggestSettings({ machineId, materialName, goal });
-    setSuggesting(false);
-    if (!res.ok) return setError(res.error);
-    setBaseline({ params: res.data!.params, rationale: res.data!.rationale, source: res.data!.source });
+    try {
+      const res = await suggestSettings({ machineId, materialName, goal });
+      if (!res.ok) return setError(res.error);
+      setBaseline({ params: res.data!.params, rationale: res.data!.rationale, source: res.data!.source });
+    } catch {
+      setError("The suggestion request failed. Check the AI connection in Settings, or pick a baseline below.");
+    } finally {
+      setSuggesting(false);
+    }
   }
 
   function pickBaseline(id: string) {

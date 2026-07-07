@@ -274,7 +274,10 @@ export async function suggestSettings(input: SuggestInput): Promise<Result<Sugge
   if (await isAiConfigured()) {
     const grounding = await getGrounding(machine.type, input.machineId, input.materialName, goal.process);
     const { system, user } = buildSuggestPrompt(machine.type, machine.ranges, input.materialName, input.goal, grounding, machineContext(machine));
-    const res = await chat({ system, user, json: true, timeoutMs: 60000 });
+    // Short timeout: this is a tiny text prompt, and there's a deterministic
+    // fallback below (baseline / mid-range), so don't make the user wait on a
+    // slow or unreachable model — fall back fast.
+    const res = await chat({ system, user, json: true, timeoutMs: 25000 });
     if (res.ok) {
       const parsed = parseSuggestResponse(extractJson(res.content), machine.type, machine.ranges);
       if (parsed) return { ok: true, data: { ...parsed, source: "ai" } };
