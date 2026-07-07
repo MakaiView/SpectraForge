@@ -21,14 +21,14 @@ CURRENT="$(node -p "require('./package.json').version")"
 if [ "$CURRENT" = "$VERSION" ]; then
   echo "→ package.json already at $VERSION — tagging the current commit."
 else
-  echo "→ Bumping version to $VERSION…"
+  echo "→ Bumping version to ${VERSION}…"
   npm version "$VERSION" --no-git-tag-version >/dev/null
   git add package.json package-lock.json
   git commit -q -m "Release $TAG"
 fi
 git tag -a "$TAG" -m "Release $TAG"
 
-echo "→ Pushing master + $TAG…"
+echo "→ Pushing master + ${TAG}…"
 git push -q origin master
 git push -q origin "$TAG"
 
