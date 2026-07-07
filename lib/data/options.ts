@@ -5,11 +5,12 @@ import type { MachineTypeKey } from "@/lib/params/schema";
 /** Machines as recipe-form options (id, name, type, ranges). Owner-scoped by RLS. */
 export async function getMachineOptions(): Promise<MachineOption[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("machines").select("id, name, type, ranges, addons").order("created_at", { ascending: true });
+  const { data } = await supabase.from("machines").select("id, name, type, lens, ranges, addons").order("created_at", { ascending: true });
   return (data ?? []).map((m) => ({
     id: m.id,
     name: m.name,
     type: m.type as MachineTypeKey,
+    lens: m.lens ?? "",
     ranges: (m.ranges as MachineOption["ranges"]) ?? {},
     addons: m.addons ?? [],
   }));

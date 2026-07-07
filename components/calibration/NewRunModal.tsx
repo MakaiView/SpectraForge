@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Modal, fieldInput, fieldLabel, FormError, ModalButtons } from "@/components/ui/Modal";
 import { useActiveMachine } from "@/components/shell/ActiveMachineProvider";
 import { GOALS, type GoalKey } from "@/lib/calibration/constants";
+import { materialCategory, CATEGORY_ORDER } from "@/lib/calibration/categorize";
 import { PARAM_DEFS, formatParam, type ParamKey } from "@/lib/params/schema";
 import { createRun, suggestSettings } from "@/app/(app)/calibration/actions";
 import type { MachineOption, MaterialOption } from "@/components/recipes/RecipeForm";
@@ -26,8 +27,22 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
   const machine = machines.find((m) => m.id === machineId) || null;
   const materialName = materials.find((m) => m.id === materialId)?.name ?? "";
 
-  // Baselines applicable to the chosen machine type.
-  const matchingBaselines = useMemo(() => (machine ? baselines.filter((b) => b.machineType === machine.type) : []), [baselines, machine]);
+  // Baselines applicable to the chosen machine — same laser type AND same lens/
+  // module (a ComMarker 70mm and 150mm are both UV but have different presets).
+  const matchingBaselines = useMemo(
+    () => (machine ? baselines.filter((b) => b.machineType === machine.type && (machine.lens ? b.lens === machine.lens : true)) : []),
+    [baselines, machine],
+  );
+
+  // Group into material-type sections for the dropdown headers, ordered.
+  const groupedBaselines = useMemo(() => {
+    const by = new Map<string, BaselineItem[]>();
+    for (const b of matchingBaselines) {
+      const cat = materialCategory(b.materialName);
+      (by.get(cat) ?? by.set(cat, []).get(cat)!).push(b);
+    }
+    return CATEGORY_ORDER.filter((c) => by.has(c)).map((c) => ({ category: c, items: by.get(c)! }));
+  }, [matchingBaselines]);
 
   async function suggest() {
     if (!machineId) return setError("Pick a machine first.");
@@ -93,7 +108,11 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
           {matchingBaselines.length > 0 && (
             <select onChange={(e) => pickBaseline(e.target.value)} defaultValue="" style={{ ...fieldInput, appearance: "auto", flex: 1, minWidth: 160, height: 36, padding: "0 12px" }}>
               <option value="">Or pick a baseline…</option>
-              {matchingBaselines.map((b) => (<option key={b.id} value={b.id}>{b.materialName} · {b.process}{b.lens ? ` · ${b.lens}` : ""}</option>))}
+              {groupedBaselines.map((g) => (
+                <optgroup key={g.category} label={`—  ${g.category}  —`}>
+                  {g.items.map((b) => (<option key={b.id} value={b.id}>{b.materialName} · {b.process}</option>))}
+                </optgroup>
+              ))}
             </select>
           )}
         </div>

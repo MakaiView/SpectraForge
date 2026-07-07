@@ -11,6 +11,7 @@ export interface MachineOption {
   id: string;
   name: string;
   type: MachineTypeKey;
+  lens: string;
   ranges: Record<string, { min?: number | null; max?: number | null }>;
   addons: string[];
 }
