@@ -37,7 +37,7 @@ export default async function DashboardPage() {
     supabase.from("attempts").select("id", { count: "exact", head: true }),
     supabase.from("recipes").select("id", { count: "exact", head: true }).eq("status", "cal"),
     supabase.from("recipes").select("*, machines(name, type)").eq("status", "review").order("created_at", { ascending: false }).limit(4),
-    supabase.from("attempts").select("id", { count: "exact", head: true }).in("outcome", ["marginal", "fail"]),
+    supabase.from("attempts").select("id", { count: "exact", head: true }).in("outcome", ["possible", "bad", "fail"]),
     supabase.from("recipes").select("id, name, material_name, status, params, created_at, machines(name, type)").order("created_at", { ascending: false }).limit(6),
     supabase.from("attempts").select("id, material_name, outcome, created_at, machines(name, type)").order("created_at", { ascending: false }).limit(6),
     supabase.from("machines").select("id, name, type, recipes(count)").order("created_at", { ascending: true }),
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
     activity.push({ key: `r${r.id}`, title: r.material_name || r.name, sub: `${summary || r.name} · ${m?.name ?? "—"}`, iso: r.created_at, badge: <Badge tone={sb.tone}>{sb.label}</Badge>, icon: "recipe" });
   }
   for (const a of recentAttempts.data ?? []) {
-    const om = OUTCOME_META[a.outcome] ?? OUTCOME_META.clean;
+    const om = OUTCOME_META[a.outcome] ?? OUTCOME_META.great;
     const m = a.machines as { name: string } | null;
     activity.push({ key: `a${a.id}`, title: a.material_name || "Attempt", sub: `Attempt · ${m?.name ?? "—"}`, iso: a.created_at, badge: <Badge tone={om.tone}>{om.label}</Badge>, icon: "attempt" });
   }

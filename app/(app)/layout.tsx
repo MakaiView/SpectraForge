@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     supabase.from("machines").select("id, name, type").order("created_at", { ascending: true }),
     supabase.from("user_settings").select("onboarded, ai_provider, ai_model").eq("id", profile.id).single(),
     supabase.from("recipes").select("id", { count: "exact", head: true }).eq("status", "review"),
-    supabase.from("attempts").select("id", { count: "exact", head: true }).in("outcome", ["marginal", "fail"]),
+    supabase.from("attempts").select("id", { count: "exact", head: true }).in("outcome", ["possible", "bad", "fail"]),
     resolveAiConfig(),
   ]);
   const machines: ActiveMachineOption[] = (data ?? []).map((m) => ({ id: m.id, name: m.name, type: m.type as MachineTypeKey }));

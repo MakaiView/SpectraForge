@@ -1,5 +1,5 @@
 import type { ParamKey, MachineTypeKey } from "@/lib/params/schema";
-import { TYPE_PARAMS } from "@/lib/params/schema";
+import { TYPE_PARAMS, PARAM_DEFS } from "@/lib/params/schema";
 
 /** GOALS — id · label · sub · maps to process (DATA_MODEL). */
 export type GoalKey = "cut" | "engrave" | "deep" | "photo" | "mark" | "color" | "coat" | "char";
@@ -44,6 +44,19 @@ export const PATTERNS: Pattern[] = [
 
 export function patternMeta(key: string): Pattern {
   return PATTERNS.find((p) => p.key === key) ?? PATTERNS[0];
+}
+
+/**
+ * Type-aware pattern label built from the ACTUAL axis params for this machine —
+ * so a UV galvo reads "Q-Pulse × Speed", not the generic "Power × Speed" (UV has
+ * no power). Falls back to the static label when the type isn't known.
+ */
+export function patternLabel(key: PatternKey, type: MachineTypeKey | null): string {
+  if (type) {
+    const ax = patternAxisKeys(type, key);
+    if (ax) return `${PARAM_DEFS[ax.y].label} × ${PARAM_DEFS[ax.x].label}`;
+  }
+  return patternMeta(key).label;
 }
 
 /** The primary (energy) param for a type — first key in TYPE_PARAMS

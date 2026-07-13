@@ -53,7 +53,7 @@ export function AttemptsScreen({ attempts, machines, materials, aiConfigured }: 
   function openEdit(a: AttemptItem) {
     setViewing(null);
     setForm({
-      value: { id: a.id, material_id: a.material_id, material_name: a.material_name, process: a.process, machine_id: a.machine_id, outcome: (a.outcome as AttemptFormValue["outcome"]) || "clean", params: a.params, addons: a.addons, note: a.note },
+      value: { id: a.id, material_id: a.material_id, material_name: a.material_name, process: a.process, machine_id: a.machine_id, outcome: (a.outcome as AttemptFormValue["outcome"]) || "great", params: a.params, addons: a.addons, note: a.note },
       inputUrl: a.inputFullUrl,
       resultUrl: a.resultFullUrl,
     });
@@ -81,7 +81,7 @@ export function AttemptsScreen({ attempts, machines, materials, aiConfigured }: 
       ) : (
         <div style={{ ...card, overflow: "hidden" }}>
           {attempts.map((a) => {
-            const om = OUTCOME_META[a.outcome] ?? OUTCOME_META.clean;
+            const om = OUTCOME_META[a.outcome] ?? OUTCOME_META.great;
             const summary = a.machineType ? paramSummary(a.machineType, a.params) : "";
             return (
               <div key={a.id} onClick={() => setViewing(a)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--sf-line)", cursor: "pointer" }}>

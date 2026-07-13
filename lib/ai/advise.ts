@@ -1,12 +1,13 @@
 import { PARAM_DEFS, TYPE_PARAMS, formatParam, type MachineTypeKey, type ParamKey } from "@/lib/params/schema";
 import type { GroundingFact } from "@/lib/ai/suggest";
+import type { ResultGrade } from "@/lib/calibration/grades";
 
 export interface AttemptContext {
   machineDesc: string;
   type: MachineTypeKey;
   material: string;
   process: "cut" | "engrave" | "mark";
-  outcome: "clean" | "marginal" | "fail";
+  outcome: ResultGrade;
   params: Record<string, number>;
   note: string;
   hasInput: boolean;
@@ -41,11 +42,13 @@ export function buildAdvisePrompt(ctx: AttemptContext, grounding: GroundingFact[
           : "No photos are attached — reason from the settings and outcome alone.";
 
   const aim =
-    ctx.outcome === "clean"
-      ? "The user marked this CLEAN. Confirm what's working and offer at most one optional optimization (e.g. faster/fewer passes) — do not fix what isn't broken."
-      : ctx.outcome === "marginal"
-        ? "The user marked this MARGINAL. Diagnose what's holding it back and propose the smallest setting changes to make it clean."
-        : "The user marked this a FAIL. Diagnose the most likely cause and propose the setting changes most likely to fix it.";
+    ctx.outcome === "great"
+      ? "The user marked this GREAT. Confirm what's working and offer at most one optional optimization (e.g. faster/fewer passes) — do not fix what isn't broken."
+      : ctx.outcome === "possible"
+        ? "The user marked this POSSIBLE (usable but not ideal). Diagnose what's holding it back and propose the smallest setting changes to make it great."
+        : ctx.outcome === "bad"
+          ? "The user marked this BAD (it marked, but clearly wrong for the goal). Diagnose the main problem and propose the setting changes to fix it."
+          : "The user marked this a FAIL — it either burned through / destroyed the material, or barely marked at all. Say which of the two it looks like, then propose the setting changes most likely to fix it.";
 
   const system =
     "You are a laser-materials expert reviewing a single real burn attempt. Judge from the photo(s) and the recorded context. " +

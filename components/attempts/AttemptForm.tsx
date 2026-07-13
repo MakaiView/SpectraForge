@@ -7,6 +7,7 @@ import { PhotoZone } from "@/components/attempts/PhotoZone";
 import type { ParamValues } from "@/components/params/ParamReadout";
 import type { MachineOption, MaterialOption } from "@/components/recipes/RecipeForm";
 import { ADDONS } from "@/lib/params/schema";
+import { GRADE_ORDER, GRADE_META, type ResultGrade } from "@/lib/calibration/grades";
 import { saveAttempt, type AttemptInput } from "@/app/(app)/attempts/actions";
 
 export interface AttemptFormValue {
@@ -15,22 +16,18 @@ export interface AttemptFormValue {
   material_name: string;
   process: "cut" | "engrave" | "mark";
   machine_id: string | null;
-  outcome: "clean" | "marginal" | "fail";
+  outcome: ResultGrade;
   params: ParamValues;
   addons: string[];
   note: string;
 }
 
 export function blankAttempt(defaultMachineId: string | null): AttemptFormValue {
-  return { material_id: null, material_name: "", process: "cut", machine_id: defaultMachineId, outcome: "clean", params: {}, addons: [], note: "" };
+  return { material_id: null, material_name: "", process: "cut", machine_id: defaultMachineId, outcome: "great", params: {}, addons: [], note: "" };
 }
 
 const PROCESSES: ("cut" | "engrave" | "mark")[] = ["cut", "engrave", "mark"];
-const OUTCOMES: { key: "clean" | "marginal" | "fail"; label: string; tone: string }[] = [
-  { key: "clean", label: "Clean", tone: "var(--sf-success)" },
-  { key: "marginal", label: "Marginal", tone: "var(--sf-warn)" },
-  { key: "fail", label: "Fail", tone: "var(--sf-danger)" },
-];
+const OUTCOMES = GRADE_ORDER.map((k) => ({ key: k, label: GRADE_META[k].label, tone: GRADE_META[k].color, bg: GRADE_META[k].bg }));
 const half: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
 const textarea: React.CSSProperties = { ...fieldInput, minHeight: 60, resize: "vertical", fontFamily: "inherit" };
 
@@ -138,7 +135,7 @@ export function AttemptForm({
           <div style={{ display: "flex", gap: 6 }}>
             {OUTCOMES.map((o) => {
               const on = v.outcome === o.key;
-              return <button key={o.key} type="button" onClick={() => setV({ ...v, outcome: o.key })} style={{ flex: 1, padding: "9px 0", borderRadius: 9, cursor: "pointer", fontSize: 12.5, fontWeight: 600, background: on ? `${o.tone}22` : "var(--sf-bg)", color: on ? o.tone : "var(--sf-text-2)", border: `1px solid ${on ? o.tone : "var(--sf-line-strong)"}` }}>{o.label}</button>;
+              return <button key={o.key} type="button" onClick={() => setV({ ...v, outcome: o.key })} style={{ flex: 1, padding: "9px 0", borderRadius: 9, cursor: "pointer", fontSize: 12.5, fontWeight: 600, background: on ? o.bg : "var(--sf-bg)", color: on ? o.tone : "var(--sf-text-2)", border: `1px solid ${on ? o.tone : "var(--sf-line-strong)"}` }}>{o.label}</button>;
             })}
           </div>
         </div>

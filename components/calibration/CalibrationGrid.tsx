@@ -2,14 +2,8 @@
 
 import { PARAM_DEFS } from "@/lib/params/schema";
 import { formatParam } from "@/lib/params/schema";
-import type { TestAxes, Grid, Grade, BestSquare } from "@/lib/calibration/engine";
-
-const GRADE_STYLE: Record<Grade, { bg: string; border: string; color: string }> = {
-  ungraded: { bg: "var(--sf-surface-2)", border: "var(--sf-line)", color: "var(--sf-text-3)" },
-  clean: { bg: "var(--sf-success-soft)", border: "var(--sf-success)", color: "var(--sf-success)" },
-  partial: { bg: "var(--sf-warn-soft)", border: "var(--sf-warn)", color: "var(--sf-warn)" },
-  fail: { bg: "var(--sf-danger-soft)", border: "var(--sf-danger)", color: "var(--sf-danger)" },
-};
+import type { TestAxes, Grid, BestSquare } from "@/lib/calibration/engine";
+import { gradeMeta } from "@/lib/calibration/grades";
 
 /**
  * The test grid. Rows = y-axis (primary/energy, high→low top-to-bottom),
@@ -59,8 +53,7 @@ export function CalibrationGrid({
             <div key={r} style={{ display: "grid", gridTemplateColumns: `44px repeat(${cols}, minmax(52px, 1fr))`, gap: 6, marginBottom: 6 }}>
               <div className="font-mono" style={{ fontSize: 11, display: "flex", alignItems: "center", justifyContent: "flex-end", color: "var(--sf-text-2)", paddingRight: 4 }}>{axes.y.values[r]}</div>
               {Array.from({ length: cols }).map((_, c) => {
-                const grade = grid[`${r},${c}`] ?? "ungraded";
-                const st = GRADE_STYLE[grade];
+                const st = gradeMeta(grid[`${r},${c}`] ?? "ungraded");
                 const isBest = best && best.row === r && best.col === c;
                 return (
                   <button
@@ -70,9 +63,7 @@ export function CalibrationGrid({
                     title={`${yDef.short} ${axes.y.values[r]} · ${xDef.short} ${axes.x.values[c]}`}
                   >
                     {isBest && <span style={{ position: "absolute", top: 2, right: 3, fontSize: 12, color: "var(--sf-accent)" }}>★</span>}
-                    <span style={{ fontSize: 13, color: st.color }}>
-                      {grade === "clean" ? "✓" : grade === "partial" ? "~" : grade === "fail" ? "✕" : ""}
-                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: st.color }}>{st.symbol}</span>
                   </button>
                 );
               })}

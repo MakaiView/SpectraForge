@@ -7,6 +7,7 @@ import { chat, extractJson } from "@/lib/ai/provider";
 import { getGrounding } from "@/lib/ai/grounding";
 import { machineContext, type MachineInfo } from "@/lib/ai/context";
 import { buildAdvisePrompt, parseAdviceResponse, type Advice } from "@/lib/ai/advise";
+import { type ResultGrade } from "@/lib/calibration/grades";
 import { objectToModelBase64 } from "@/lib/images/forModel";
 import { ATTEMPT_BUCKET } from "@/lib/storage/photos";
 import type { MachineTypeKey } from "@/lib/params/schema";
@@ -23,7 +24,7 @@ export interface AttemptInput {
   material_name: string;
   process: "cut" | "engrave" | "mark";
   machine_id: string | null;
-  outcome: "clean" | "marginal" | "fail";
+  outcome: ResultGrade;
   params: ParamValues;
   addons: string[];
   note: string;
@@ -102,7 +103,7 @@ export async function adviseAttempt(id: string): Promise<AdviceResult> {
       type,
       material: a.material_name,
       process,
-      outcome: a.outcome as "clean" | "marginal" | "fail",
+      outcome: a.outcome as ResultGrade,
       params,
       note: a.note ?? "",
       hasInput: !!a.input_path,

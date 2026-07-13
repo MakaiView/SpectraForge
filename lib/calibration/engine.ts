@@ -11,7 +11,7 @@ import {
   type GoalKey,
 } from "@/lib/calibration/constants";
 
-export type Grade = "ungraded" | "clean" | "partial" | "fail";
+export type Grade = "ungraded" | "great" | "possible" | "bad" | "fail";
 export const DEFAULT_GRID = 5;
 
 export interface Axis {
@@ -179,7 +179,7 @@ export function heuristicGrade(axes: TestAxes, statics: Record<string, number>, 
     for (let c = 0; c < cols; c++) {
       const e = cellEnergy(axes, r, c);
       const delta = Math.abs(e - target);
-      grid[`${r},${c}`] = delta < 0.12 ? "clean" : delta < 0.28 ? "partial" : "fail";
+      grid[`${r},${c}`] = delta < 0.1 ? "great" : delta < 0.22 ? "possible" : delta < 0.4 ? "bad" : "fail";
       if (delta < bestDelta) {
         bestDelta = delta;
         best = { row: r, col: c, params: resolveCell(axes, statics, r, c) };
@@ -190,9 +190,9 @@ export function heuristicGrade(axes: TestAxes, statics: Record<string, number>, 
   const b = best!;
   const yDef = PARAM_DEFS[axes.y.key];
   const xDef = PARAM_DEFS[axes.x.key];
-  const cleanN = Object.values(grid).filter((g) => g === "clean").length;
+  const greatN = Object.values(grid).filter((g) => g === "great").length;
   const onEdge = b.row === 0 || b.row === rows - 1 || b.col === 0 || b.col === cols - 1;
-  const headline = `${cleanN} clean square${cleanN === 1 ? "" : "s"} — best at ${yDef.short} ${b.params[axes.y.key]}, ${xDef.short} ${b.params[axes.x.key]}`;
+  const headline = `${greatN} great square${greatN === 1 ? "" : "s"} — best at ${yDef.short} ${b.params[axes.y.key]}, ${xDef.short} ${b.params[axes.x.key]}`;
   const writeup =
     `The grid sweeps ${yDef.label} (rows) against ${xDef.label} (columns). ` +
     `For a ${goal} goal the sweet spot sits toward ${target > 0.6 ? "higher" : target < 0.4 ? "lower" : "mid"} energy — ` +

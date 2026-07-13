@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalibrationGrid } from "@/components/calibration/CalibrationGrid";
 import { PromoteModal } from "@/components/calibration/PromoteModal";
 import { MachineTypeChip } from "@/components/machines/MachineTypeChip";
-import { applicablePatterns, goalMeta, patternMeta, type PatternKey } from "@/lib/calibration/constants";
+import { applicablePatterns, goalMeta, patternLabel, type PatternKey } from "@/lib/calibration/constants";
 import { axisIsRound, lightburnMap, edgeExtensions, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
 import { formatParam, PARAM_DEFS, type MachineTypeKey } from "@/lib/params/schema";
 import { updateTestConfig, saveGrid, gradeSheet, refineRun } from "@/app/(app)/calibration/actions";
@@ -35,7 +35,7 @@ export interface WizardTest {
 }
 
 const card: React.CSSProperties = { background: "var(--sf-surface)", border: "1px solid var(--sf-line)", borderRadius: 14, boxShadow: "var(--sf-e1)" };
-const CYCLE: Grade[] = ["ungraded", "clean", "partial", "fail"];
+const CYCLE: Grade[] = ["ungraded", "great", "possible", "bad", "fail"];
 
 export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] }) {
   const router = useRouter();
@@ -63,7 +63,7 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
   const editable = !!isCurrent && !promoted;
 
   // Grade sheet count for the analyze/history.
-  const cleanCount = useMemo(() => Object.values(grid).filter((g) => g === "clean").length, [grid]);
+  const greatCount = useMemo(() => Object.values(grid).filter((g) => g === "great").length, [grid]);
 
   async function cycleCell(row: number, col: number) {
     if (!currentTest) return;
@@ -169,7 +169,7 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
                 {patterns.map((p) => {
                   const on = viewingTest.pattern === p.key;
                   return <button key={p.key} type="button" disabled={busy === "config"} onClick={() => onPattern(p.key)} style={{ textAlign: "left", padding: "9px 12px", borderRadius: 9, cursor: "pointer", background: on ? "var(--sf-accent-soft)" : "var(--sf-bg)", border: `1px solid ${on ? "var(--sf-accent)" : "var(--sf-line-strong)"}` }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: on ? "var(--sf-accent)" : "var(--sf-text)" }}>{p.label}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: on ? "var(--sf-accent)" : "var(--sf-text)" }}>{patternLabel(p.key, run.machineType)}</div>
                     <div style={{ fontSize: 10.5, color: "var(--sf-text-3)", marginTop: 1 }}>{p.sub}</div>
                   </button>;
                 })}
@@ -183,8 +183,8 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
           {/* Grid + grade */}
           <div style={{ ...card, padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
-              <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-text-3)", flex: 1 }}>TEST {viewingTest.idx} · {patternMeta(viewingTest.pattern).label.toUpperCase()}</div>
-              {editable && <span style={{ fontSize: 11.5, color: "var(--sf-text-3)" }}>Click a square to cycle clean → partial → fail</span>}
+              <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-text-3)", flex: 1 }}>TEST {viewingTest.idx} · {patternLabel(viewingTest.pattern as PatternKey, run.machineType).toUpperCase()}</div>
+              {editable && <span style={{ fontSize: 11.5, color: "var(--sf-text-3)" }}>Click a square to cycle great → possible → bad → fail</span>}
             </div>
             <CalibrationGrid axes={viewingTest.axes} grid={editable ? grid : viewingTest.grid} best={editable ? best : viewingTest.best} editable={editable} onCellClick={cycleCell} />
 
@@ -218,7 +218,7 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
               {tests.map((t) => (
                 <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: "1px solid var(--sf-line)" }}>
                   <span className="font-mono" style={{ fontSize: 12, fontWeight: 600, width: 60 }}>Test {t.idx}</span>
-                  <span style={{ fontSize: 12.5, color: "var(--sf-text-3)", flex: 1 }}>{patternMeta(t.pattern).label}</span>
+                  <span style={{ fontSize: 12.5, color: "var(--sf-text-3)", flex: 1 }}>{patternLabel(t.pattern as PatternKey, run.machineType)}</span>
                   <span className="font-mono" style={{ fontSize: 12, color: "var(--sf-text-2)" }}>
                     {t.best ? `${PARAM_DEFS[t.axes.y.key].short} ${formatParam(t.axes.y.key, t.best.params[t.axes.y.key])} · ${PARAM_DEFS[t.axes.x.key].short} ${formatParam(t.axes.x.key, t.best.params[t.axes.x.key])}` : "not graded"}
                   </span>

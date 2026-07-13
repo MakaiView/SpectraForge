@@ -27,15 +27,20 @@ export function buildGradePrompt(axes: TestAxes, statics: Record<string, number>
     `Columns (left→right) vary ${xd.label} (${xd.unit}): [${axes.x.values.join(", ")}].\n` +
     `Fixed settings on every cell: ${staticsStr}.\n` +
     `Goal: ${g.label} — ${g.sub}.\n\n` +
-    `Grade each cell as one of "clean", "partial", or "fail" for that goal. ` +
-    `If the best cell sits on an outer edge of the grid, say so in the writeup — the true optimum may lie beyond this grid and the range should be extended. ` +
-    `Return JSON exactly like: {"grades":[["clean","partial",...] (${cols} per row, ${rows} rows)], ` +
+    `Grade each cell as exactly one of "great", "possible", "bad", or "fail" for that goal:\n` +
+    `- great: exactly the result you want for this goal.\n` +
+    `- possible: usable but not ideal — would do in a pinch.\n` +
+    `- bad: it marked, but clearly wrong for the goal.\n` +
+    `- fail: ruined — it burned through / destroyed the material, OR it barely marked at all.\n` +
+    `If the best cell sits on an outer edge of the grid, say so in the writeup — the true optimum may lie beyond this grid; suggest widening the machine's range in Settings. ` +
+    `In the writeup, note whether the failures skew too hot (over-burning) or too cold (under-marking). ` +
+    `Return JSON exactly like: {"grades":[["great","possible",...] (${cols} per row, ${rows} rows)], ` +
     `"best":{"row":<0-${rows - 1}>,"col":<0-${cols - 1}>}, "headline":"<one line>", "writeup":"<2-3 sentences>"}.`;
 
   return { system, user };
 }
 
-const VALID: Grade[] = ["clean", "partial", "fail", "ungraded"];
+const VALID: Grade[] = ["great", "possible", "bad", "fail", "ungraded"];
 
 /**
  * Validate + convert a model grade response into the same GradeResult shape the

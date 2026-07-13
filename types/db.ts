@@ -47,7 +47,7 @@ export type Database = {
           material_id: string | null
           material_name: string
           note: string
-          outcome: Database["public"]["Enums"]["attempt_outcome"]
+          outcome: string
           owner_id: string
           params: Json
           process: Database["public"]["Enums"]["recipe_process"]
@@ -67,7 +67,7 @@ export type Database = {
           material_id?: string | null
           material_name?: string
           note?: string
-          outcome?: Database["public"]["Enums"]["attempt_outcome"]
+          outcome?: string
           owner_id?: string
           params?: Json
           process?: Database["public"]["Enums"]["recipe_process"]
@@ -87,7 +87,7 @@ export type Database = {
           material_id?: string | null
           material_name?: string
           note?: string
-          outcome?: Database["public"]["Enums"]["attempt_outcome"]
+          outcome?: string
           owner_id?: string
           params?: Json
           process?: Database["public"]["Enums"]["recipe_process"]
@@ -628,7 +628,6 @@ export type Database = {
       }
     }
     Enums: {
-      attempt_outcome: "clean" | "marginal" | "fail"
       calibration_status: "in-progress" | "promoted"
       hazard_level: "low" | "medium" | "high"
       machine_type: "co2" | "fiber" | "diode" | "uv" | "ir"

@@ -9,14 +9,15 @@ import { Lightbox } from "@/components/attempts/Lightbox";
 import { ShareCard } from "@/components/attempts/ShareCard";
 import { adviseAttempt } from "@/app/(app)/attempts/actions";
 import { ADDONS } from "@/lib/params/schema";
+import { GRADE_ORDER, GRADE_META } from "@/lib/calibration/grades";
+import type { BadgeTone } from "@/components/ui/Badge";
 import type { Advice } from "@/lib/ai/advise";
 import type { AttemptItem } from "@/components/attempts/AttemptsScreen";
 
-export const OUTCOME_META: Record<string, { label: string; tone: "success" | "warn" | "danger"; color: string }> = {
-  clean: { label: "Clean", tone: "success", color: "var(--sf-success)" },
-  marginal: { label: "Marginal", tone: "warn", color: "var(--sf-warn)" },
-  fail: { label: "Fail", tone: "danger", color: "var(--sf-danger)" },
-};
+// Per-attempt outcomes share the calibration result scale (Great/Possible/Bad/Fail).
+export const OUTCOME_META: Record<string, { label: string; tone: BadgeTone; color: string }> = Object.fromEntries(
+  GRADE_ORDER.map((k) => [k, { label: GRADE_META[k].label, tone: GRADE_META[k].tone, color: GRADE_META[k].color }]),
+);
 
 function PhotoTile({ label, thumb, full, onOpen }: { label: string; thumb: string | null; full: string | null; onOpen: () => void }) {
   return (
@@ -44,7 +45,7 @@ export function AttemptView({ attempt, aiConfigured, onClose, onEdit }: { attemp
   const [advice, setAdvice] = useState<Advice | null>(attempt.aiAdvice);
   const [busy, setBusy] = useState(false);
   const [adviceErr, setAdviceErr] = useState("");
-  const om = OUTCOME_META[attempt.outcome] ?? OUTCOME_META.clean;
+  const om = OUTCOME_META[attempt.outcome] ?? OUTCOME_META.great;
   const addonLabels = ADDONS.filter((a) => attempt.addons.includes(a.id));
 
   async function runAdvice() {

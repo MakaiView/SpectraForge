@@ -11,7 +11,7 @@ export default async function ReviewPage() {
   const supabase = await createClient();
   const [{ data: recipes }, { data: attempts }] = await Promise.all([
     supabase.from("recipes").select("id, name, material_name, process, status, machines(name)").eq("status", "review").order("created_at", { ascending: false }),
-    supabase.from("attempts").select("id, material_name, process, outcome, note, logged_at, machines(name)").in("outcome", ["marginal", "fail"]).order("logged_at", { ascending: false }),
+    supabase.from("attempts").select("id, material_name, process, outcome, note, logged_at, machines(name)").in("outcome", ["possible", "bad", "fail"]).order("logged_at", { ascending: false }),
   ]);
 
   const total = (recipes?.length ?? 0) + (attempts?.length ?? 0);
