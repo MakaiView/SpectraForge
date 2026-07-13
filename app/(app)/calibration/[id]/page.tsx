@@ -25,6 +25,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     id: run.id,
     materialName: run.material_name,
     goal: run.goal,
+    machineId: run.machine_id ?? null,
     machineName: machine?.name ?? null,
     machineType: (machine?.type as MachineTypeKey) ?? null,
     machineRanges: machine?.ranges ?? {},

@@ -6,7 +6,6 @@ import {
   GOAL_TARGET_ENERGY,
   EXTENSIBLE_PARAMS,
   HARD_CAP,
-  EXTEND_FACTOR,
   type PatternKey,
   type GoalKey,
 } from "@/lib/calibration/constants";
@@ -241,39 +240,16 @@ export function edgeExtensions(axes: TestAxes, best: BestSquare, ranges: Ranges)
   return out;
 }
 
-/** Widen a param's range past its declared bound for an edge refine, clamped to
- *  the hard physical cap. Returns the machine range unchanged when not applicable. */
-function extendRange(key: ParamKey, r: { min?: number | null; max?: number | null }, edge: "low" | "high" | null): { min?: number | null; max?: number | null } {
-  if (!edge || !EXTENSIBLE_PARAMS.has(key)) return r;
-  const cap = HARD_CAP[key];
-  const span = Math.abs((r.max ?? 0) - (r.min ?? 0)) || 1;
-  const pad = Math.max(span * EXTEND_FACTOR, key === "passes" ? 1 : 0);
-  const out = { ...r };
-  if (edge === "high" && r.max != null) {
-    out.max = r.max + pad;
-    if (cap?.max != null) out.max = Math.min(out.max, cap.max);
-  }
-  if (edge === "low" && r.min != null) {
-    out.min = Math.max(0, r.min - pad);
-    if (cap?.min != null) out.min = Math.max(out.min, cap.min);
-  }
-  return out;
-}
-
 // ── Refine ───────────────────────────────────────────────────────────────────
 
 /**
  * Build the next (finer) test centered on the current best square, halving each
- * axis step. When the best square is on a range edge and the param is
- * extensible, the axis is widened past the machine's declared bound (clamped to
- * the hard cap) so the refined grid can explore beyond a conservative range.
+ * axis step. HARD-CLAMPED to the machine's configured min/max — refining never
+ * tests beyond the range set in Machine Settings (a safety wall). buildRangeAxis
+ * clamps every value to [min,max]; when the best sits on an edge, `edgeExtensions`
+ * flags it so the UI can suggest widening the range in Settings.
  */
 export function refineAxes(type: MachineTypeKey, pattern: PatternKey, ranges: Ranges, prev: TestAxes, best: BestSquare, count: number): TestAxes | null {
-  // Extend the machine range for any axis whose best sits on an extensible edge.
-  const effRanges: Ranges = { ...ranges };
-  effRanges[prev.x.key] = extendRange(prev.x.key, ranges[prev.x.key] ?? {}, edgeOf(prev.x, best));
-  effRanges[prev.y.key] = extendRange(prev.y.key, ranges[prev.y.key] ?? {}, edgeOf(prev.y, best));
-
   const centers: Partial<Record<ParamKey, number>> = {
     [prev.x.key]: best.params[prev.x.key],
     [prev.y.key]: best.params[prev.y.key],
@@ -284,7 +260,7 @@ export function refineAxes(type: MachineTypeKey, pattern: PatternKey, ranges: Ra
   const sy = stepOf(prev.y);
   if (sx && prev.x.key !== "passes") steps[prev.x.key] = niceStep(sx / 2);
   if (sy && prev.y.key !== "passes") steps[prev.y.key] = niceStep(sy / 2);
-  return buildAxes(type, pattern, effRanges, count, centers, steps);
+  return buildAxes(type, pattern, ranges, count, centers, steps);
 }
 
 // ── LightBurn Material Test handoff ──────────────────────────────────────────

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { MachineTypeChip } from "@/components/machines/MachineTypeChip";
 import { NewRunModal } from "@/components/calibration/NewRunModal";
 import { BaselineManager, type BaselineItem } from "@/components/baselines/BaselineManager";
+import { deleteRun } from "@/app/(app)/calibration/actions";
 import { goalMeta } from "@/lib/calibration/constants";
 import type { MachineOption, MaterialOption } from "@/components/recipes/RecipeForm";
 import type { MachineTypeKey } from "@/lib/params/schema";
@@ -28,6 +29,16 @@ export function CalibrationScreen({ runs, machines, materials, baselines }: { ru
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [managingBaselines, setManagingBaselines] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function onDelete(id: string, label: string) {
+    if (!confirm(`Delete the "${label}" calibration run and all its tests? This can't be undone.`)) return;
+    setBusyId(id);
+    const res = await deleteRun(id);
+    setBusyId(null);
+    if (res.ok) router.refresh();
+    else alert(res.error);
+  }
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -52,7 +63,7 @@ export function CalibrationScreen({ runs, machines, materials, baselines }: { ru
       ) : (
         <div style={{ ...card, overflow: "hidden" }}>
           {runs.map((r) => (
-            <button key={r.id} onClick={() => router.push(`/calibration/${r.id}`)} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 18px", borderBottom: "1px solid var(--sf-line)", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", color: "var(--sf-text)" }}>
+            <div key={r.id} onClick={() => router.push(`/calibration/${r.id}`)} role="button" tabIndex={0} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 18px", borderBottom: "1px solid var(--sf-line)", cursor: "pointer", textAlign: "left", color: "var(--sf-text)", opacity: busyId === r.id ? 0.5 : 1 }}>
               <span style={{ width: 38, height: 38, borderRadius: 10, background: "var(--sf-surface-3)", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="8" /><path d="M12 4v3M12 17v3M4 12h3M17 12h3" /><circle cx="12" cy="12" r="1.6" fill="currentColor" /></svg>
               </span>
@@ -67,8 +78,16 @@ export function CalibrationScreen({ runs, machines, materials, baselines }: { ru
               <div style={{ flex: "none", width: 104, textAlign: "right" }}>
                 {r.status === "promoted" ? <Badge tone="success">Promoted</Badge> : <Badge tone="accent">In progress</Badge>}
               </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sf-text-3)" strokeWidth="1.8" style={{ flex: "none" }}><path d="M9 6l6 6-6 6" /></svg>
-            </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(r.id, r.materialName || "Untitled material"); }}
+                disabled={busyId === r.id}
+                aria-label="Delete run"
+                title="Delete run"
+                style={{ flex: "none", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--sf-line)", background: "var(--sf-surface-2)", color: "var(--sf-text-3)", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /></svg>
+              </button>
+            </div>
           ))}
         </div>
       )}

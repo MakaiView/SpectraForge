@@ -8,13 +8,14 @@ import { PromoteModal } from "@/components/calibration/PromoteModal";
 import { MachineTypeChip } from "@/components/machines/MachineTypeChip";
 import { applicablePatterns, goalMeta, patternLabel, type PatternKey } from "@/lib/calibration/constants";
 import { axisIsRound, lightburnMap, edgeExtensions, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
-import { formatParam, PARAM_DEFS, type MachineTypeKey } from "@/lib/params/schema";
+import { formatParam, PARAM_DEFS, type MachineTypeKey, type ParamKey } from "@/lib/params/schema";
 import { updateTestConfig, saveGrid, gradeSheet, refineRun } from "@/app/(app)/calibration/actions";
 
 export interface WizardRun {
   id: string;
   materialName: string;
   goal: string;
+  machineId: string | null;
   machineName: string | null;
   machineType: MachineTypeKey | null;
   machineRanges: Record<string, { min?: number | null; max?: number | null }>;
@@ -178,7 +179,7 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
           )}
 
           {/* LightBurn handoff */}
-          <LightburnPanel axes={viewingTest.axes} />
+          <LightburnPanel axes={viewingTest.axes} statics={viewingTest.statics} />
 
           {/* Grid + grade */}
           <div style={{ ...card, padding: "20px 22px" }}>
@@ -227,7 +228,8 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
             </div>
           )}
 
-          {/* Range-extension hint: best sits on a machine-range edge */}
+          {/* Edge flag: best sits on a machine-range edge — refine stays clamped, so
+              suggest widening the range in Machine Settings (never auto-exceed it). */}
           {editable && best && (() => {
             const exts = edgeExtensions(viewingTest.axes, best, run.machineRanges);
             if (!exts.length) return null;
@@ -235,7 +237,7 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
             return (
               <div style={{ ...card, padding: "12px 16px", background: "var(--sf-warn-soft)", borderColor: "var(--sf-warn)", display: "flex", alignItems: "center", gap: 9 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sf-warn)" strokeWidth="1.9" style={{ flex: "none" }}><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
-                <span style={{ fontSize: 12.5, color: "var(--sf-text-2)" }}>Best square is at the <strong style={{ color: "var(--sf-warn)" }}>{label}</strong> — the real sweet spot may be beyond your range. <strong>Refine</strong> will widen it (within safe caps) to explore further.</span>
+                <span style={{ fontSize: 12.5, color: "var(--sf-text-2)" }}>Best square is at the <strong style={{ color: "var(--sf-warn)" }}>{label}</strong> — the true sweet spot may lie beyond your range. Refining stays within the machine&apos;s limits; to explore further, raise the range in {run.machineId ? <Link href={`/machines/${run.machineId}`} style={{ color: "var(--sf-warn)", fontWeight: 600 }}>Machine Settings</Link> : <strong>Machine Settings</strong>}.</span>
               </div>
             );
           })()}
@@ -279,11 +281,13 @@ function SetupRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LightburnPanel({ axes }: { axes: TestAxes }) {
+function LightburnPanel({ axes, statics }: { axes: TestAxes; statics: Record<string, number> }) {
   const m = lightburnMap(axes);
   const roundX = axisIsRound(axes.x);
   const roundY = axisIsRound(axes.y);
   const cell: React.CSSProperties = { background: "var(--sf-surface-2)", border: "1px solid var(--sf-line)", borderRadius: 9, padding: "10px 12px" };
+  // The held-constant params (everything the grid ISN'T sweeping) — set once.
+  const staticEntries = Object.entries(statics).filter(([k]) => k in PARAM_DEFS);
   return (
     <div style={{ ...card, padding: "18px 20px" }}>
       <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-text-3)", marginBottom: 12 }}>LIGHTBURN MATERIAL TEST</div>
@@ -297,6 +301,21 @@ function LightburnPanel({ axes }: { axes: TestAxes }) {
           <div className="font-mono" style={{ fontSize: 13, marginTop: 5 }}>Min {m.yMin} · Max {m.yMax} · Rows {m.rows}</div>
         </div>
       </div>
+
+      {/* Static params — set these ONCE; they stay constant on every square. */}
+      {staticEntries.length > 0 && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--sf-line)" }}>
+          <div className="font-mono" style={{ fontSize: 9.5, letterSpacing: ".1em", color: "var(--sf-text-3)", marginBottom: 8 }}>SET ONCE · CONSTANT ON EVERY CELL</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            {staticEntries.map(([k, v]) => (
+              <span key={k} className="font-mono" style={{ fontSize: 12, background: "var(--sf-surface-2)", border: "1px solid var(--sf-line)", borderRadius: 7, padding: "5px 10px" }}>
+                {PARAM_DEFS[k as ParamKey].label} <strong style={{ color: "var(--sf-text)" }}>{formatParam(k as ParamKey, v)}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(roundX && roundY) ? (
         <div style={{ fontSize: 11.5, color: "var(--sf-success)", marginTop: 10 }}>✓ Axis values are round — ready for LightBurn.</div>
       ) : (

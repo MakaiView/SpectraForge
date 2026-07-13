@@ -157,7 +157,3 @@ export const HARD_CAP: Partial<Record<ParamKey, { min?: number; max?: number }>>
   power: { min: 0, max: 100 },
   passes: { min: 1 },
 };
-
-/** How far past the declared range one refine step may reach, as a fraction of
- *  the axis span, when the best square is on that edge. */
-export const EXTEND_FACTOR = 0.25;

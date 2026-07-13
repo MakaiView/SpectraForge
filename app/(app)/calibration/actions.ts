@@ -241,6 +241,11 @@ export async function promoteRun(runId: string, testId: string, row: number, col
 
 export async function deleteRun(runId: string): Promise<Result> {
   const supabase = await createClient();
+  // Clean up burned-sheet photos first so Storage objects don't orphan; the
+  // tests themselves cascade-delete with the run via the FK.
+  const { data: tests } = await supabase.from("calibration_tests").select("photo_path, photo_thumb_path").eq("run_id", runId);
+  const paths = (tests ?? []).flatMap((t) => [t.photo_path, t.photo_thumb_path].filter((p): p is string => !!p));
+  if (paths.length) await supabase.storage.from(CALIBRATION_BUCKET).remove(paths);
   const { error } = await supabase.from("calibration_runs").delete().eq("id", runId);
   if (error) return { ok: false, error: "Could not delete the run." };
   revalidatePath("/calibration");
