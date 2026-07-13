@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/db";
 import { TYPE_PARAMS, type MachineTypeKey, type ParamKey } from "@/lib/params/schema";
-import { defaultPattern, goalMeta, type GoalKey, type PatternKey } from "@/lib/calibration/constants";
+import { defaultPattern, goalMeta, patternAxisKeys, type GoalKey, type PatternKey } from "@/lib/calibration/constants";
 import { buildAxes, refineAxes, heuristicGrade, emptyGrid, resolveCell, DEFAULT_GRID, type TestAxes, type Ranges, type Grid, type BestSquare, type GradeResult } from "@/lib/calibration/engine";
 import { isAiConfigured } from "@/lib/ai/config";
 import { chat, extractJson } from "@/lib/ai/provider";
 import { buildGradePrompt, parseGradeResponse } from "@/lib/ai/grade";
 import { buildSuggestPrompt, parseSuggestResponse } from "@/lib/ai/suggest";
 import { getGrounding } from "@/lib/ai/grounding";
+import { buildNextTestPrompt, parseNextTestResponse } from "@/lib/ai/nexttest";
 import { machineContext, type MachineInfo } from "@/lib/ai/context";
 import { objectToModelBase64 } from "@/lib/images/forModel";
 import { clampParams } from "@/lib/ai/constraints";
@@ -210,6 +211,87 @@ export async function refineRun(runId: string): Promise<Result<{ testIdx: number
   await supabase.from("calibration_runs").update({ updated_at: new Date().toISOString() }).eq("id", runId);
   revalidatePath(`/calibration/${runId}`);
   return { ok: true, data: { testIdx: last.idx + 1 } };
+}
+
+/**
+ * AI-planned next test (BUILD_SPEC §5c). Unlike refineRun's mechanical zoom, this
+ * feeds the model the last grid's grades + the user's rationale + run context, and
+ * lets it reason about the limiting factor — it MAY sweep different parameters and
+ * re-center the held values. Everything is re-clamped to the machine's ranges.
+ * AI-only (there's no useful heuristic for open-ended "what should change next").
+ */
+export async function suggestNextTest(runId: string): Promise<Result<{ testIdx: number; reasoning: string }>> {
+  const supabase = await createClient();
+  if (!(await isAiConfigured())) return { ok: false, error: "Set up the AI assistant in Settings to get a reasoned next test." };
+
+  const { data: run } = await supabase
+    .from("calibration_runs")
+    .select("id, machine_id, material_name, goal, context, machines(name, manufacturer, model, type, watts, lens, ranges)")
+    .eq("id", runId)
+    .single();
+  if (!run?.machine_id) return { ok: false, error: "Run has no machine." };
+  const machine = run.machines as (MachineInfo & { ranges: Ranges }) | null;
+  if (!machine) return { ok: false, error: "Machine not found." };
+  const type = machine.type as MachineTypeKey;
+  const ranges = (machine.ranges ?? {}) as Ranges;
+
+  const { data: last } = await supabase.from("calibration_tests").select("*").eq("run_id", runId).order("idx", { ascending: false }).limit(1).single();
+  if (!last) return { ok: false, error: "No test to build on." };
+  const humanGrid = ((last.grid as unknown as Grid) ?? {});
+  if (Object.values(humanGrid).every((gr) => !gr || gr === "ungraded")) return { ok: false, error: "Grade this test first — the AI plans the next one from your grades." };
+
+  const { system, user } = buildNextTestPrompt({
+    machineDesc: machineContext(machine),
+    type,
+    material: run.material_name,
+    goal: run.goal as GoalKey,
+    context: run.context ?? "",
+    axes: last.axes as unknown as TestAxes,
+    statics: (last.statics as Record<string, number>) ?? {},
+    grid: humanGrid,
+    best: last.best_square as BestSquare | null,
+    rationale: last.rationale ?? "",
+    ranges,
+  });
+  const res = await chat({ system, user, json: true, timeoutMs: 45000 });
+  if (!res.ok) return { ok: false, error: res.error };
+  const plan = parseNextTestResponse(extractJson(res.content), type);
+  if (!plan) return { ok: false, error: "The model's plan couldn't be read. Try again." };
+
+  const keys = patternAxisKeys(type, plan.pattern);
+  if (!keys) return { ok: false, error: "The suggested pattern isn't valid for this machine." };
+  const clampWindow = (key: ParamKey, lo: number, hi: number) => {
+    const r = ranges[key] ?? {};
+    const min = r.min ?? Math.min(lo, hi);
+    const max = r.max ?? Math.max(lo, hi);
+    return { min: Math.max(min, Math.min(lo, hi)), max: Math.min(max, Math.max(lo, hi)) };
+  };
+  const overrideRanges: Ranges = { ...ranges, [keys.x]: clampWindow(keys.x, plan.xMin, plan.xMax), [keys.y]: clampWindow(keys.y, plan.yMin, plan.yMax) };
+  const count = (last.axes as unknown as TestAxes)?.x?.values.length || DEFAULT_GRID;
+  const axes = buildAxes(type, plan.pattern, overrideRanges, count);
+  if (!axes) return { ok: false, error: "Could not build the next test grid." };
+
+  // Held params: the AI's values, clamped to type + ranges; fill gaps from winner / last test.
+  const clampedStatics = clampParams(type, ranges, plan.statics);
+  const statics: Record<string, number> = {};
+  for (const k of TYPE_PARAMS[type].filter((p) => p !== axes.x.key && p !== axes.y.key)) {
+    const v = clampedStatics[k] ?? (last.best_square as BestSquare | null)?.params[k] ?? (last.statics as Record<string, number>)?.[k];
+    if (typeof v === "number") statics[k] = v;
+  }
+
+  const { error } = await supabase.from("calibration_tests").insert({
+    run_id: runId,
+    idx: last.idx + 1,
+    pattern: plan.pattern,
+    axes: axes as unknown as Json,
+    statics,
+    grid: emptyGrid(axes.y.values.length, axes.x.values.length) as unknown as Json,
+    ai_plan: plan.reasoning,
+  });
+  if (error) return { ok: false, error: "Could not create the next test." };
+  await supabase.from("calibration_runs").update({ updated_at: new Date().toISOString() }).eq("id", runId);
+  revalidatePath(`/calibration/${runId}`);
+  return { ok: true, data: { testIdx: last.idx + 1, reasoning: plan.reasoning } };
 }
 
 /** Promote a chosen square to a recipe, stamping provenance and marking the run promoted. */

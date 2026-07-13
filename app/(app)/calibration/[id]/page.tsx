@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RunWizard, type WizardRun, type WizardTest } from "@/components/calibration/RunWizard";
 import { CALIBRATION_BUCKET, signedUrlMap } from "@/lib/storage/photos";
+import { isAiConfigured } from "@/lib/ai/config";
 import type { MachineTypeKey } from "@/lib/params/schema";
 import type { TestAxes, Grid, BestSquare } from "@/lib/calibration/engine";
 import type { Ranges } from "@/lib/calibration/engine";
@@ -45,10 +46,11 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     aiGrid: (t.ai_grid as unknown as Grid) ?? null,
     aiBest: (t.ai_best as unknown as BestSquare) ?? null,
     rationale: t.rationale ?? "",
+    aiPlan: t.ai_plan ?? "",
     analysis: (t.analysis as { headline: string; writeup: string } | null) ?? null,
     sheetThumbUrl: t.photo_thumb_path ? urls[t.photo_thumb_path] ?? null : null,
     sheetFullUrl: t.photo_path ? urls[t.photo_path] ?? null : null,
   }));
 
-  return <RunWizard run={wizardRun} tests={tests} />;
+  return <RunWizard run={wizardRun} tests={tests} aiConfigured={await isAiConfigured()} />;
 }

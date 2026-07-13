@@ -193,6 +193,7 @@ export type Database = {
         Row: {
           ai_best: Json | null
           ai_grid: Json | null
+          ai_plan: string
           analysis: Json | null
           axes: Json
           best_square: Json | null
@@ -211,6 +212,7 @@ export type Database = {
         Insert: {
           ai_best?: Json | null
           ai_grid?: Json | null
+          ai_plan?: string
           analysis?: Json | null
           axes?: Json
           best_square?: Json | null
@@ -229,6 +231,7 @@ export type Database = {
         Update: {
           ai_best?: Json | null
           ai_grid?: Json | null
+          ai_plan?: string
           analysis?: Json | null
           axes?: Json
           best_square?: Json | null

@@ -9,7 +9,7 @@ import { MachineTypeChip } from "@/components/machines/MachineTypeChip";
 import { applicablePatterns, goalMeta, patternLabel, type PatternKey } from "@/lib/calibration/constants";
 import { axisIsRound, lightburnMap, edgeExtensions, resolveCell, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
 import { formatParam, PARAM_DEFS, type MachineTypeKey, type ParamKey } from "@/lib/params/schema";
-import { updateTestConfig, saveGrid, saveRationale, gradeSheet, refineRun } from "@/app/(app)/calibration/actions";
+import { updateTestConfig, saveGrid, saveRationale, gradeSheet, refineRun, suggestNextTest } from "@/app/(app)/calibration/actions";
 
 export interface WizardRun {
   id: string;
@@ -34,6 +34,7 @@ export interface WizardTest {
   aiGrid: Grid | null;
   aiBest: BestSquare | null;
   rationale: string;
+  aiPlan: string;
   analysis: { headline: string; writeup: string } | null;
   sheetThumbUrl: string | null;
   sheetFullUrl: string | null;
@@ -42,7 +43,7 @@ export interface WizardTest {
 const card: React.CSSProperties = { background: "var(--sf-surface)", border: "1px solid var(--sf-line)", borderRadius: 14, boxShadow: "var(--sf-e1)" };
 const CYCLE: Grade[] = ["ungraded", "great", "possible", "bad", "fail"];
 
-export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] }) {
+export function RunWizard({ run, tests, aiConfigured }: { run: WizardRun; tests: WizardTest[]; aiConfigured: boolean }) {
   const router = useRouter();
   const promoted = run.status === "promoted";
   const currentTest = tests[tests.length - 1] ?? null;
@@ -133,11 +134,31 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
     router.refresh();
   }
 
+  const [actionErr, setActionErr] = useState("");
+
   async function onRefine() {
     setBusy("refine");
-    const res = await refineRun(run.id);
-    setBusy("");
-    if (res.ok) { router.refresh(); setSel(N + 1 > N ? N + 1 : N); setTimeout(() => setSel(N + 1), 0); }
+    setActionErr("");
+    try {
+      const res = await refineRun(run.id);
+      if (res.ok) { router.refresh(); setTimeout(() => setSel(N + 1), 0); }
+      else setActionErr(res.error);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  // AI plans the next test from your grades + rationale + context (may change params).
+  async function onSuggestNext() {
+    setBusy("suggest");
+    setActionErr("");
+    try {
+      const res = await suggestNextTest(run.id);
+      if (res.ok) { router.refresh(); setTimeout(() => setSel(N + 1), 0); }
+      else setActionErr(res.error);
+    } finally {
+      setBusy("");
+    }
   }
 
   async function onUploadSheet(file: File) {
@@ -201,6 +222,17 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
       {/* Test node */}
       {viewingTest && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* AI's plan for this test (when it was AI-suggested) */}
+          {viewingTest.aiPlan && (
+            <div style={{ ...card, padding: "12px 16px", background: "var(--sf-accent-soft)", borderColor: "var(--sf-accent)", display: "flex", alignItems: "flex-start", gap: 9 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sf-accent)" strokeWidth="1.8" style={{ flex: "none", marginTop: 1 }}><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
+              <div>
+                <span className="font-mono" style={{ fontSize: 9.5, letterSpacing: ".1em", color: "var(--sf-accent)" }}>AI&apos;S PLAN FOR THIS TEST</span>
+                <p style={{ fontSize: 12.5, color: "var(--sf-text-2)", margin: "3px 0 0", lineHeight: 1.5 }}>{viewingTest.aiPlan}</p>
+              </div>
+            </div>
+          )}
+
           {/* Config (current + editable only) */}
           {editable && (
             <div style={{ ...card, padding: "18px 20px" }}>
@@ -308,11 +340,23 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
 
           {/* Actions (current test) */}
           {editable && (
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button onClick={onRefine} disabled={busy === "refine" || !best} title={!best ? "Grade the sheet and pick a best square first" : ""} style={{ ...secondaryBtn, opacity: best ? 1 : 0.5 }}>
-                {busy === "refine" ? "Refining…" : "Refine ↻"}
-              </button>
-              <button onClick={() => setPromoteOpen(true)} disabled={!best} style={{ height: 38, padding: "0 18px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: best ? "pointer" : "default", opacity: best ? 1 : 0.5 }}>Promote →</button>
+            <div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                <button onClick={onRefine} disabled={busy === "refine" || !best} title={!best ? "Pick your winner square first" : "Zoom in on your winner with the same two settings"} style={{ ...secondaryBtn, opacity: best ? 1 : 0.5 }}>
+                  {busy === "refine" ? "Refining…" : "Refine ↻ (zoom in)"}
+                </button>
+                <button
+                  onClick={onSuggestNext}
+                  disabled={busy === "suggest" || gradedCount === 0 || !aiConfigured}
+                  title={!aiConfigured ? "Set up AI in Settings to plan the next test" : gradedCount === 0 ? "Grade the sheet first" : "Let the AI reason about your grades and plan the next test — it may change which settings it sweeps"}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 38, padding: "0 15px", borderRadius: 9, border: "1px solid var(--sf-accent)", background: "var(--sf-accent-soft)", color: "var(--sf-accent)", fontSize: 13, fontWeight: 600, cursor: busy === "suggest" || gradedCount === 0 || !aiConfigured ? "default" : "pointer", opacity: gradedCount === 0 || !aiConfigured ? 0.5 : 1 }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
+                  {busy === "suggest" ? "Planning…" : "AI: next test"}
+                </button>
+                <button onClick={() => setPromoteOpen(true)} disabled={!best} style={{ height: 38, padding: "0 18px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: best ? "pointer" : "default", opacity: best ? 1 : 0.5 }}>Promote →</button>
+              </div>
+              {actionErr && <div style={{ marginTop: 10, textAlign: "right", fontSize: 12.5, color: "var(--sf-danger)" }}>{actionErr}</div>}
             </div>
           )}
         </div>
