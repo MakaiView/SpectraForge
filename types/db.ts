@@ -122,6 +122,7 @@ export type Database = {
       calibration_runs: {
         Row: {
           baseline: Json | null
+          context: string
           created_at: string
           goal: string
           id: string
@@ -136,6 +137,7 @@ export type Database = {
         }
         Insert: {
           baseline?: Json | null
+          context?: string
           created_at?: string
           goal: string
           id?: string
@@ -150,6 +152,7 @@ export type Database = {
         }
         Update: {
           baseline?: Json | null
+          context?: string
           created_at?: string
           goal?: string
           id?: string
@@ -188,6 +191,8 @@ export type Database = {
       }
       calibration_tests: {
         Row: {
+          ai_best: Json | null
+          ai_grid: Json | null
           analysis: Json | null
           axes: Json
           best_square: Json | null
@@ -199,10 +204,13 @@ export type Database = {
           pattern: string
           photo_path: string | null
           photo_thumb_path: string | null
+          rationale: string
           run_id: string
           statics: Json
         }
         Insert: {
+          ai_best?: Json | null
+          ai_grid?: Json | null
           analysis?: Json | null
           axes?: Json
           best_square?: Json | null
@@ -214,10 +222,13 @@ export type Database = {
           pattern: string
           photo_path?: string | null
           photo_thumb_path?: string | null
+          rationale?: string
           run_id: string
           statics?: Json
         }
         Update: {
+          ai_best?: Json | null
+          ai_grid?: Json | null
           analysis?: Json | null
           axes?: Json
           best_square?: Json | null
@@ -229,6 +240,7 @@ export type Database = {
           pattern?: string
           photo_path?: string | null
           photo_thumb_path?: string | null
+          rationale?: string
           run_id?: string
           statics?: Json
         }

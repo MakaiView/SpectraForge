@@ -7,14 +7,15 @@ import { CalibrationGrid } from "@/components/calibration/CalibrationGrid";
 import { PromoteModal } from "@/components/calibration/PromoteModal";
 import { MachineTypeChip } from "@/components/machines/MachineTypeChip";
 import { applicablePatterns, goalMeta, patternLabel, type PatternKey } from "@/lib/calibration/constants";
-import { axisIsRound, lightburnMap, edgeExtensions, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
+import { axisIsRound, lightburnMap, edgeExtensions, resolveCell, type TestAxes, type Grid, type Grade, type BestSquare } from "@/lib/calibration/engine";
 import { formatParam, PARAM_DEFS, type MachineTypeKey, type ParamKey } from "@/lib/params/schema";
-import { updateTestConfig, saveGrid, gradeSheet, refineRun } from "@/app/(app)/calibration/actions";
+import { updateTestConfig, saveGrid, saveRationale, gradeSheet, refineRun } from "@/app/(app)/calibration/actions";
 
 export interface WizardRun {
   id: string;
   materialName: string;
   goal: string;
+  context: string;
   machineId: string | null;
   machineName: string | null;
   machineType: MachineTypeKey | null;
@@ -30,6 +31,9 @@ export interface WizardTest {
   statics: Record<string, number>;
   grid: Grid;
   best: BestSquare | null;
+  aiGrid: Grid | null;
+  aiBest: BestSquare | null;
+  rationale: string;
   analysis: { headline: string; writeup: string } | null;
   sheetThumbUrl: string | null;
   sheetFullUrl: string | null;
@@ -48,14 +52,19 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
   const [sel, setSel] = useState<number>(N);
   const [grid, setGridState] = useState<Grid>(currentTest?.grid ?? {});
   const [best, setBest] = useState<BestSquare | null>(currentTest?.best ?? null);
+  const [mode, setMode] = useState<"grade" | "winner">("grade");
+  const [rationale, setRationale] = useState<string>(currentTest?.rationale ?? "");
   const [busy, setBusy] = useState<string>("");
   const [promoteOpen, setPromoteOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const rationaleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const axesKey = JSON.stringify(currentTest?.axes ?? {});
   useEffect(() => {
     setGridState(currentTest?.grid ?? {});
     setBest(currentTest?.best ?? null);
+    setRationale(currentTest?.rationale ?? "");
+    setMode("grade");
   }, [currentTest?.id, currentTest?.pattern, currentTest?.analysis, axesKey]);
 
   const patterns = run.machineType ? applicablePatterns(run.machineType) : [];
@@ -63,11 +72,18 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
   const isCurrent = viewingTest && currentTest && viewingTest.id === currentTest.id;
   const editable = !!isCurrent && !promoted;
 
-  // Grade sheet count for the analyze/history.
-  const greatCount = useMemo(() => Object.values(grid).filter((g) => g === "great").length, [grid]);
+  // Cells the human has actually graded — gates revealing the AI's take.
+  const gradedCount = useMemo(() => Object.values(grid).filter((g) => g && g !== "ungraded").length, [grid]);
 
-  async function cycleCell(row: number, col: number) {
+  function onCellClick(row: number, col: number) {
     if (!currentTest) return;
+    if (mode === "winner") {
+      // Designate this cell as the human's best square.
+      const nextBest: BestSquare = { row, col, params: resolveCell(currentTest.axes, currentTest.statics, row, col) };
+      setBest(nextBest);
+      saveGrid(currentTest.id, grid, nextBest); // fire-and-forget
+      return;
+    }
     const key = `${row},${col}`;
     const cur = (grid[key] ?? "ungraded") as Grade;
     const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
@@ -76,7 +92,16 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
     saveGrid(currentTest.id, nextGrid, best); // fire-and-forget
   }
 
-  async function onGrade() {
+  function onRationale(text: string) {
+    setRationale(text);
+    if (!currentTest) return;
+    if (rationaleTimer.current) clearTimeout(rationaleTimer.current);
+    const id = currentTest.id;
+    rationaleTimer.current = setTimeout(() => saveRationale(id, text), 600);
+  }
+
+  // Reveal the AI's independent grade (writes ai_grid; never your grid).
+  async function onRevealAi() {
     if (!currentTest) return;
     setBusy("grade");
     try {
@@ -86,6 +111,19 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
       setBusy("");
     }
   }
+
+  // How often your grade and the AI's agree, across cells both of you graded.
+  const agreement = useMemo(() => {
+    const ai = viewingTest?.aiGrid;
+    if (!ai) return null;
+    const human = editable ? grid : viewingTest?.grid ?? {};
+    let both = 0, match = 0;
+    for (const k of Object.keys(ai)) {
+      const a = ai[k], h = human[k];
+      if (a && a !== "ungraded" && h && h !== "ungraded") { both++; if (a === h) match++; }
+    }
+    return both ? { pct: Math.round((match / both) * 100), both, match } : null;
+  }, [viewingTest?.aiGrid, viewingTest?.grid, grid, editable]);
 
   async function onPattern(pattern: PatternKey) {
     if (!currentTest) return;
@@ -156,6 +194,7 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
           <SetupRow label="GOAL" value={`${goalMeta(run.goal).label} — ${goalMeta(run.goal).sub}`} />
           <SetupRow label="MACHINE" value={run.machineName || "None"} />
           <SetupRow label="MAPS TO" value={`${goalMeta(run.goal).process} process`} />
+          {run.context && <SetupRow label="CONTEXT" value={run.context} />}
         </div>
       )}
 
@@ -181,34 +220,59 @@ export function RunWizard({ run, tests }: { run: WizardRun; tests: WizardTest[] 
           {/* LightBurn handoff */}
           <LightburnPanel axes={viewingTest.axes} statics={viewingTest.statics} />
 
-          {/* Grid + grade */}
+          {/* Your grade */}
           <div style={{ ...card, padding: "20px 22px" }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
-              <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-text-3)", flex: 1 }}>TEST {viewingTest.idx} · {patternLabel(viewingTest.pattern as PatternKey, run.machineType).toUpperCase()}</div>
-              {editable && <span style={{ fontSize: 11.5, color: "var(--sf-text-3)" }}>Click a square to cycle great → possible → bad → fail</span>}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+              <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-text-3)", flex: 1 }}>{editable ? "YOUR GRADE" : "GRADE"} · TEST {viewingTest.idx} · {patternLabel(viewingTest.pattern as PatternKey, run.machineType).toUpperCase()}</div>
+              {editable && (
+                <div style={{ display: "flex", gap: 4, background: "var(--sf-bg)", border: "1px solid var(--sf-line-strong)", borderRadius: 9, padding: 3 }}>
+                  {(["grade", "winner"] as const).map((mk) => (
+                    <button key={mk} onClick={() => setMode(mk)} style={{ padding: "5px 11px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: mode === mk ? "var(--sf-accent)" : "transparent", color: mode === mk ? "#fff" : "var(--sf-text-2)" }}>{mk === "grade" ? "Grade cells" : "★ Pick winner"}</button>
+                  ))}
+                </div>
+              )}
             </div>
-            <CalibrationGrid axes={viewingTest.axes} grid={editable ? grid : viewingTest.grid} best={editable ? best : viewingTest.best} editable={editable} onCellClick={cycleCell} />
+            {editable && <div style={{ fontSize: 11.5, color: "var(--sf-text-3)", marginBottom: 12 }}>{mode === "grade" ? "Click a square to cycle great → possible → bad → fail." : "Click the winning square to mark it ★."}</div>}
+            <CalibrationGrid axes={viewingTest.axes} grid={editable ? grid : viewingTest.grid} best={editable ? best : viewingTest.best} editable={editable} onCellClick={onCellClick} />
 
             {editable && (
-              <div style={{ display: "flex", gap: 8, marginTop: 18, alignItems: "center", flexWrap: "wrap" }}>
-                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadSheet(f); }} />
-                <button onClick={() => fileRef.current?.click()} disabled={busy === "upload"} style={secondaryBtn}>{viewingTest.sheetThumbUrl ? "Replace sheet photo" : "Upload sheet photo"}</button>
-                <button onClick={onGrade} disabled={busy === "grade"} style={{ height: 38, padding: "0 16px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
-                  {busy === "grade" ? "Grading…" : "AI grade this sheet"}
-                </button>
-                {viewingTest.sheetThumbUrl && <img src={viewingTest.sheetThumbUrl} alt="sheet" style={{ width: 46, height: 34, objectFit: "cover", borderRadius: 6, border: "1px solid var(--sf-line)" }} />}
-              </div>
+              <>
+                <label className="font-mono" style={{ display: "block", fontSize: 9.5, letterSpacing: ".12em", color: "var(--sf-text-3)", margin: "18px 0 7px" }}>WHY DID YOU GRADE IT THIS WAY? <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— optional, but great training data</span></label>
+                <textarea value={rationale} onChange={(e) => onRationale(e.target.value)} placeholder="e.g. Row 3 col 2 is the cleanest coat removal — bright silver, sharp edges. Anything hotter starts browning the steel; the bottom row barely marked." rows={2} style={{ width: "100%", boxSizing: "border-box", background: "var(--sf-bg)", border: "1px solid var(--sf-line-strong)", borderRadius: 9, color: "var(--sf-text)", fontSize: 13, padding: "9px 11px", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+
+                <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center", flexWrap: "wrap" }}>
+                  <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadSheet(f); }} />
+                  <button onClick={() => fileRef.current?.click()} disabled={busy === "upload"} style={secondaryBtn}>{viewingTest.sheetThumbUrl ? "Replace sheet photo" : "Upload sheet photo"}</button>
+                  {viewingTest.sheetThumbUrl && <img src={viewingTest.sheetThumbUrl} alt="sheet" style={{ width: 46, height: 34, objectFit: "cover", borderRadius: 6, border: "1px solid var(--sf-line)" }} />}
+                  <div style={{ flex: 1 }} />
+                  <button onClick={onRevealAi} disabled={busy === "grade" || gradedCount === 0} title={gradedCount === 0 ? "Grade the sheet first — then reveal the AI's take" : ""} style={{ height: 38, padding: "0 16px", borderRadius: 9, border: "none", background: "var(--sf-accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: gradedCount === 0 ? "default" : "pointer", opacity: gradedCount === 0 ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 7 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
+                    {busy === "grade" ? "Grading…" : viewingTest.aiGrid ? "Re-run AI grade" : "Reveal AI grade"}
+                  </button>
+                </div>
+              </>
             )}
           </div>
 
-          {/* Analyze */}
-          {viewingTest.analysis && (
-            <div style={{ ...card, padding: "18px 20px" }}>
-              <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-text-3)", marginBottom: 10 }}>ANALYSIS</div>
-              <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 8 }}>{viewingTest.analysis.headline}</div>
-              <p style={{ fontSize: 13, color: "var(--sf-text-2)", margin: 0, lineHeight: 1.55 }}>{viewingTest.analysis.writeup}</p>
-              <p className="font-mono" style={{ fontSize: 10, color: "var(--sf-text-3)", margin: "12px 0 0" }}>GRADED BY THE VISION MODEL WHEN AI IS CONFIGURED — HEURISTIC FALLBACK OTHERWISE</p>
+          {/* AI grade — revealed after you grade, for comparison + training */}
+          {viewingTest.aiGrid && (
+            <div style={{ ...card, padding: "20px 22px", borderColor: "var(--sf-accent)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                <div className="font-mono" style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--sf-accent)", flex: 1 }}>AI GRADE</div>
+                {agreement && (
+                  <span className="font-mono" style={{ fontSize: 11, fontWeight: 600, color: agreement.pct >= 75 ? "var(--sf-success)" : agreement.pct >= 50 ? "var(--sf-warn)" : "var(--sf-danger)", background: "var(--sf-surface-2)", border: "1px solid var(--sf-line)", borderRadius: 999, padding: "3px 10px" }}>
+                    {agreement.pct}% AGREEMENT ({agreement.match}/{agreement.both})
+                  </span>
+                )}
+              </div>
+              <CalibrationGrid axes={viewingTest.axes} grid={viewingTest.aiGrid} best={viewingTest.aiBest} editable={false} />
+              {viewingTest.analysis && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--sf-line)" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{viewingTest.analysis.headline}</div>
+                  <p style={{ fontSize: 13, color: "var(--sf-text-2)", margin: 0, lineHeight: 1.55 }}>{viewingTest.analysis.writeup}</p>
+                </div>
+              )}
+              <p className="font-mono" style={{ fontSize: 10, color: "var(--sf-text-3)", margin: "12px 0 0" }}>YOUR GRADE STAYS AUTHORITATIVE · THE AI GRADE IS FOR COMPARISON + TRAINING</p>
             </div>
           )}
 

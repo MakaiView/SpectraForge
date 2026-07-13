@@ -9,7 +9,7 @@ import type { GradeResult } from "@/lib/calibration/engine";
  * sheet photo (base64, inlined by the caller) plus the exact grid geometry so it
  * can align cells to axis values and grade each one for the goal.
  */
-export function buildGradePrompt(axes: TestAxes, statics: Record<string, number>, goal: GoalKey, machineDesc: string, material: string): { system: string; user: string } {
+export function buildGradePrompt(axes: TestAxes, statics: Record<string, number>, goal: GoalKey, machineDesc: string, material: string, context = ""): { system: string; user: string } {
   const g = goalMeta(goal);
   const rows = axes.y.values.length;
   const cols = axes.x.values.length;
@@ -23,6 +23,7 @@ export function buildGradePrompt(axes: TestAxes, statics: Record<string, number>
 
   const user =
     `The photo is a ${rows}×${cols} laser test grid burned on ${machineDesc}, testing ${material || "an unspecified material"}.\n` +
+    (context.trim() ? `The user's context / aim: ${context.trim()}\n` : "") +
     `Rows (top→bottom) vary ${yd.label} (${yd.unit}): [${axes.y.values.join(", ")}].\n` +
     `Columns (left→right) vary ${xd.label} (${xd.unit}): [${axes.x.values.join(", ")}].\n` +
     `Fixed settings on every cell: ${staticsStr}.\n` +

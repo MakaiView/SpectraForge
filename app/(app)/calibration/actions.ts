@@ -47,6 +47,8 @@ export interface CreateRunInput {
   materialName: string;
   machineId: string;
   goal: GoalKey;
+  /** Free-text: what the material is + what the user is going for (feeds the AI). */
+  context?: string;
   /** Optional manufacturer/preset params to center the first grid on (§6). */
   baseline?: Record<string, number> | null;
 }
@@ -70,7 +72,7 @@ export async function createRun(input: CreateRunInput): Promise<Result<{ runId: 
   const name = `${input.materialName || "Material"} — ${goalMeta(input.goal).label}`;
   const { data: run, error: runErr } = await supabase
     .from("calibration_runs")
-    .insert({ name, material_id: input.materialId, material_name: input.materialName, machine_id: input.machineId, goal: input.goal, baseline: (input.baseline ?? null) as unknown as Json })
+    .insert({ name, material_id: input.materialId, material_name: input.materialName, machine_id: input.machineId, goal: input.goal, context: (input.context ?? "").trim(), baseline: (input.baseline ?? null) as unknown as Json })
     .select("id")
     .single();
   if (runErr || !run) return { ok: false, error: "Could not create the run." };
@@ -121,6 +123,14 @@ export async function saveGrid(testId: string, grid: Grid, best: BestSquare | nu
   return { ok: true };
 }
 
+/** Save the human's rationale for how they graded a test (training signal). */
+export async function saveRationale(testId: string, rationale: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("calibration_tests").update({ rationale: rationale }).eq("id", testId);
+  if (error) return { ok: false, error: "Could not save the rationale." };
+  return { ok: true };
+}
+
 /**
  * "AI grade this sheet" — HEURISTIC placeholder (BUILD_SPEC §5c). Reads the
  * test's axes/statics + the run's goal, grades every cell and picks the
@@ -131,11 +141,11 @@ export async function gradeSheet(testId: string): Promise<Result<{ source: "visi
   const supabase = await createClient();
   const { data: test } = await supabase
     .from("calibration_tests")
-    .select("id, run_id, axes, statics, photo_path, calibration_runs(goal, material_name, machines(name, manufacturer, model, type, watts, lens))")
+    .select("id, run_id, axes, statics, photo_path, calibration_runs(goal, material_name, context, machines(name, manufacturer, model, type, watts, lens))")
     .eq("id", testId)
     .single();
   if (!test) return { ok: false, error: "Test not found." };
-  const run = test.calibration_runs as { goal: string; material_name: string; machines: MachineInfo | null } | null;
+  const run = test.calibration_runs as { goal: string; material_name: string; context: string; machines: MachineInfo | null } | null;
   const goal = run?.goal as GoalKey;
   const axes = test.axes as unknown as TestAxes;
   const statics = (test.statics as Record<string, number>) ?? {};
@@ -147,7 +157,7 @@ export async function gradeSheet(testId: string): Promise<Result<{ source: "visi
     const b64 = await objectToModelBase64(CALIBRATION_BUCKET, test.photo_path);
     if (b64) {
       const machineDesc = run?.machines ? machineContext(run.machines) : "an unspecified laser";
-      const { system, user } = buildGradePrompt(axes, statics, goal, machineDesc, run?.material_name ?? "");
+      const { system, user } = buildGradePrompt(axes, statics, goal, machineDesc, run?.material_name ?? "", run?.context ?? "");
       const res = await chat({ system, user, images: [b64], json: true, timeoutMs: 90000 });
       if (res.ok) {
         const parsed = parseGradeResponse(extractJson(res.content), axes, statics);
@@ -158,9 +168,10 @@ export async function gradeSheet(testId: string): Promise<Result<{ source: "visi
   if (!result) result = heuristicGrade(axes, statics, goal);
   const { grid, best, analysis } = result;
 
+  // Write to the AI columns — never the human's grid/best_square (they grade blind).
   const { error } = await supabase
     .from("calibration_tests")
-    .update({ grid: grid as unknown as Json, best_square: best as unknown as Json, analysis })
+    .update({ ai_grid: grid as unknown as Json, ai_best: best as unknown as Json, analysis })
     .eq("id", testId);
   if (error) return { ok: false, error: "Could not grade the sheet." };
   await supabase.from("calibration_runs").update({ updated_at: new Date().toISOString() }).eq("id", test.run_id);
@@ -256,6 +267,7 @@ export interface SuggestInput {
   machineId: string;
   materialName: string;
   goal: GoalKey;
+  context?: string;
 }
 export interface SuggestOutput {
   params: Record<string, number>;
@@ -278,7 +290,7 @@ export async function suggestSettings(input: SuggestInput): Promise<Result<Sugge
 
   if (await isAiConfigured()) {
     const grounding = await getGrounding(machine.type, input.machineId, input.materialName, goal.process);
-    const { system, user } = buildSuggestPrompt(machine.type, machine.ranges, input.materialName, input.goal, grounding, machineContext(machine));
+    const { system, user } = buildSuggestPrompt(machine.type, machine.ranges, input.materialName, input.goal, grounding, machineContext(machine), input.context ?? "");
     // Short timeout: this is a tiny text prompt, and there's a deterministic
     // fallback below (baseline / mid-range), so don't make the user wait on a
     // slow or unreachable model — fall back fast.

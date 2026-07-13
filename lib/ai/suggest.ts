@@ -15,7 +15,7 @@ export interface GroundingFact {
  * manufacturer baselines for this material/machine, and constrains it to the
  * machine's real ranges + the params this type exposes.
  */
-export function buildSuggestPrompt(type: MachineTypeKey, ranges: Ranges, material: string, goal: GoalKey, grounding: GroundingFact[], machineDesc: string): { system: string; user: string } {
+export function buildSuggestPrompt(type: MachineTypeKey, ranges: Ranges, material: string, goal: GoalKey, grounding: GroundingFact[], machineDesc: string, context = ""): { system: string; user: string } {
   const g = goalMeta(goal);
   const paramList = TYPE_PARAMS[type]
     .map((k) => {
@@ -33,6 +33,7 @@ export function buildSuggestPrompt(type: MachineTypeKey, ranges: Ranges, materia
 
   const user =
     `Machine: ${machineDesc}. Material: ${material || "unspecified"}. Goal: ${g.label} — ${g.sub}.\n` +
+    (context.trim() ? `User's context / aim: ${context.trim()}\n` : "") +
     `Applicable parameters and their ranges: ${paramList}.\n\n` +
     `Known facts to ground on:\n${facts}\n\n` +
     `Propose one starting parameter set (a value per applicable parameter, within range). ` +

@@ -19,6 +19,7 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
   const [materialId, setMaterialId] = useState<string>("");
   const [machineId, setMachineId] = useState<string>(active?.id ?? machines[0]?.id ?? "");
   const [goal, setGoal] = useState<GoalKey>("cut");
+  const [context, setContext] = useState("");
   const [baseline, setBaseline] = useState<{ params: Record<string, number>; rationale: string; source: string } | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -48,7 +49,7 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
     if (!machineId) return setError("Pick a machine first.");
     setSuggesting(true); setError("");
     try {
-      const res = await suggestSettings({ machineId, materialName, goal });
+      const res = await suggestSettings({ machineId, materialName, goal, context });
       if (!res.ok) return setError(res.error);
       setBaseline({ params: res.data!.params, rationale: res.data!.rationale, source: res.data!.source });
     } catch {
@@ -66,7 +67,7 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
   async function create() {
     if (!machineId) return setError("Pick a machine to calibrate.");
     setSaving(true); setError("");
-    const res = await createRun({ materialId: materialId || null, materialName, machineId, goal, baseline: baseline?.params ?? null });
+    const res = await createRun({ materialId: materialId || null, materialName, machineId, goal, context, baseline: baseline?.params ?? null });
     if (!res.ok) { setSaving(false); return setError(res.error); }
     router.push(`/calibration/${res.data!.runId}`);
   }
@@ -102,6 +103,15 @@ export function NewRunModal({ machines, materials, baselines, onClose }: { machi
           );
         })}
       </div>
+
+      <label style={{ ...fieldLabel, marginTop: 14 }}>Context <span style={{ color: "var(--sf-text-3)", fontWeight: 400 }}>— what is it & what are you after? (helps the AI)</span></label>
+      <textarea
+        value={context}
+        onChange={(e) => setContext(e.target.value)}
+        placeholder="e.g. Black-coated stainless business card. I want to ablate the coating cleanly to bright silver with crisp edges — no discoloring the steel underneath."
+        rows={3}
+        style={{ ...fieldInput, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+      />
 
       {/* Starting point: suggest (AI/baseline/mid-range) or pick a baseline */}
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--sf-line)" }}>
