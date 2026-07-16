@@ -17,23 +17,28 @@ cite it as "BUILD_SPEC §N"). This file is the working context; BUILD_SPEC is th
 - Node 22 in the production Docker image (webpack build there); local dev is fine on Node 23 **only
   with Turbopack** (Node 23 + webpack has a bug — see Gotchas).
 
-## Local dev
-Needs Docker + the `supabase` CLI (pinned as a dev dependency).
-```bash
-npm install
-npm run db:start                 # supabase start — boots local Postgres/Auth/Storage, applies migrations
-# copy .env.example → .env.local and fill NEXT_PUBLIC_SUPABASE_URL / ANON / SERVICE_ROLE
-# from the `supabase start` output, plus SEED_ADMIN_* (e.g. steve@makaiview.dev / spectra-dev)
-npm run db:seed-admin && npm run db:seed-baselines && npm run db:seed-machines && npm run db:seed-recipes
-npm run dev                      # http://localhost:3000
-```
-Other scripts: `db:reset` (re-apply migrations + wipe), `db:types` (regenerate `types/db.ts` from the
-live local schema — **run this after every migration**). Env vars (all in `.env.example`; real values
-are gitignored): `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only),
-`SEED_ADMIN_*`, `OLLAMA_BASE_URL/API_KEY/MODEL` (fallback only — real AI config is per-user in the DB).
+## Working in this repo (the workflow here)
+This checkout is for **editing + shipping**, not running the app. The loop:
+1. Edit code.
+2. `npm install` once, then run **`npx tsc --noEmit`** to typecheck — **do this before every release**:
+   the Docker image build *ignores* TS errors (to keep the LXC build fast), so local `tsc` is the real
+   gate. There's no CI.
+3. Commit, then `./scripts/release.sh 0.1.X` — bumps `package.json`, tags `vX`, pushes. The homelab
+   auto-deploys within ~10 min (migrations apply automatically on deploy), or trigger the in-app
+   **Admin → Software updates** button.
 
-Local Supabase container names are suffixed `_SpectraForge` (e.g. `supabase_db_SpectraForge`); the
-homelab uses the standard `supabase-db` / `supabase-storage`.
+Running the full app locally (Docker + local Supabase + seeds) is documented in `README.md` → *Getting
+started* — rarely needed for edits/fixes.
+
+**Migrations:** add `supabase/migrations/00NN_*.sql` (next number in sequence), then regenerate
+`types/db.ts`. With a local Supabase, `npm run db:types`. Without one, either hand-edit `types/db.ts`
+for simple column adds (most of ours are), or apply the SQL against the homelab DB over SSH and run
+`supabase gen types` there. jsonb columns come back as `Json` — cast at the boundary. Migrations run
+automatically on deploy (idempotent) and must be safe to re-run.
+
+Env vars (all templated in `.env.example`; real values gitignored): `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY` (server-only), `SEED_ADMIN_*`, `OLLAMA_*` (fallback only — real AI config is
+per-user in `user_settings`).
 
 ## Repo map
 - `app/(app)/*` — authed screens: dashboard, recipes, materials, machines, calibration (`/[id]` = run
@@ -97,8 +102,6 @@ has a heuristic/deterministic fallback when unconfigured. Touchpoints:
   image build only* (keeps the resource-constrained LXC build fast). Authed pages + login are
   `export const dynamic = "force-dynamic"` so `next build` doesn't try to prerender data-fetching routes.
 - **`@supabase/ssr` must be `^0.12`.** Font is **Hanken Grotesk** (not IBM Plex). 4-accent palette.
-- After any migration: apply it, then `npm run db:types` and commit the regenerated `types/db.ts`.
-  jsonb columns come back as `Json` — cast at the boundary.
 - Param labels are **type-aware** — never hardcode "Power"; derive from the machine's params
   (`patternLabel`, `PARAM_DEFS`). UV shows "Q-Pulse", not "Power".
 - Secrets: `.gitignore` ignores `.env` + `.env.*` except the `*.example` templates. `.env.local`
